@@ -51,9 +51,9 @@
       <div class="flex items-center space-x-2">
         <!-- Кнопка принудительного обновления БД -->
         <button
-          onclick="loadEmployeesFromDatabase()"
+          onclick="syncWithRepository()"
           class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all"
-          title="Обновить базу данных"
+          title="Обновить данные из репозитория"
         >
           <i data-lucide="refresh-cw" id="sync-icon" class="h-5 w-5"></i>
         </button>
@@ -73,7 +73,7 @@
     <div class="max-w-7xl mx-auto text-xs text-indigo-800 flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <i data-lucide="info" class="h-4 w-4 text-indigo-500"></i>
-        <span id="sync-banner-text">Загрузка базы данных сотрудников...</span>
+        <span id="sync-banner-text">Загрузка данных из GitHub...</span>
       </div>
       <button onclick="hideSyncBanner()" class="text-indigo-500 hover:text-indigo-800">
         <i data-lucide="x" class="h-3.5 w-3.5"></i>
@@ -391,24 +391,24 @@
         &copy; 2026 StaffShift Pro. Все права защищены.
       </p>
       <div class="flex items-center space-x-4 text-xs text-indigo-600 font-semibold">
-        <span>Интерактивный HTML режим + База Github</span>
+        <span>Интерактивный HTML режим + Автосинхронизация GitHub</span>
       </div>
     </div>
   </footer>
 
   <!-- СКРИПТ ПРИЛОЖЕНИЯ -->
   <script>
-    // URL для получения базы данных персонала напрямую из вашего репозитория github
-    const DATABASE_URL = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json';
+    // Базовые URL репозитория на GitHub
+    const STAFF_DATABASE_URL = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json';
+    const EVENTS_DATA_URL = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json';
 
-    // Первоначальные демонстрационные данные (используются как резервная копия при сбое сети)
+    // Резервный список на случай сбоя соединения (Fallback)
     let employees = [
       { id: '1', name: 'Александр Иванов', role: 'Старший бариста', phone: '+7 (911) 123-45-67' },
       { id: '2', name: 'Мария Смирнова', role: 'Администратор', phone: '+7 (921) 987-65-43' },
       { id: '3', name: 'Дмитрий Петров', role: 'Повар', phone: '+7 (931) 555-01-23' }
     ];
 
-    // Базовые смены для демонстрации
     let shifts = [
       { id: 's1', employeeId: '1', startTime: '2026-05-25T08:00', endTime: '2026-05-25T18:00', hasReceipt: true, isPaid: true, rate: 350 },
       { id: 's2', employeeId: '1', startTime: '2026-05-26T08:00', endTime: '2026-05-26T17:00', hasReceipt: false, isPaid: false, rate: 350 },
@@ -424,43 +424,54 @@
     let tempReceiptState = false;
     let tempPaidState = false;
 
-    // Функция загрузки данных персонала из репозитория
-    async function loadEmployeesFromDatabase() {
-      showSyncBanner("Синхронизация с Github...");
+    // Функция полной синхронизации
+    async function syncWithRepository() {
+      showSyncBanner("Синхронизация с репозиторием GitHub...");
       const syncIcon = document.getElementById('sync-icon');
       if (syncIcon) syncIcon.classList.add('animate-spin');
 
       try {
-        const response = await fetch(DATABASE_URL);
-        if (!response.ok) {
-          throw new Error(`Ошибка загрузки: ${response.status} ${response.statusText}`);
+        // 1. Загрузка сотрудников
+        const staffResponse = await fetch(STAFF_DATABASE_URL);
+        if (!staffResponse.ok) throw new Error(`Ошибка загрузки персонала: ${staffResponse.status}`);
+        const staffData = await staffResponse.json();
+        
+        const rawStaffList = Array.isArray(staffData) ? staffData : (staffData.staff || staffData.employees || []);
+        if (rawStaffList.length > 0) {
+          employees = rawStaffList.map((item, index) => ({
+            id: item.id ? item.id.toString() : (index + 1).toString(),
+            name: item.name || item.fullName || item.fio || 'Без имени',
+            role: item.role || item.position || item.job || 'Должность не указана',
+            phone: item.phone || item.telephone || item.contacts || ''
+          }));
         }
-        
-        const data = await response.json();
-        
-        // Преобразуем полученные данные в структуру нашего приложения
-        // Допускаем, что в JSON может быть массив объектов или объект с ключами.
-        const rawList = Array.isArray(data) ? data : (data.staff || data.employees || []);
-        
-        if (rawList.length > 0) {
-          employees = rawList.map((item, index) => {
-            // Поддержка различных вариантов именования ключей в JSON
+
+        // 2. Загрузка смен (events_data.json)
+        const eventsResponse = await fetch(EVENTS_DATA_URL);
+        if (!eventsResponse.ok) throw new Error(`Ошибка загрузки смен: ${eventsResponse.status}`);
+        const eventsData = await eventsResponse.json();
+
+        const rawShiftsList = Array.isArray(eventsData) ? eventsData : (eventsData.shifts || eventsData.events || []);
+        if (rawShiftsList.length > 0) {
+          shifts = rawShiftsList.map((item, index) => {
+            // Приведение полей к формату нашего приложения
             return {
-              id: item.id ? item.id.toString() : (index + 1).toString(),
-              name: item.name || item.fullName || item.fio || 'Без имени',
-              role: item.role || item.position || item.job || 'Должность не указана',
-              phone: item.phone || item.telephone || item.contacts || ''
+              id: item.id ? item.id.toString() : `shift_${index}_${Date.now()}`,
+              employeeId: (item.employeeId || item.staffId || '').toString(),
+              startTime: item.startTime || item.start || '',
+              endTime: item.endTime || item.end || '',
+              hasReceipt: item.hasReceipt !== undefined ? Boolean(item.hasReceipt) : false,
+              isPaid: item.isPaid !== undefined ? Boolean(item.isPaid) : false,
+              rate: parseInt(item.rate) || 300
             };
           });
-
-          showSyncBanner("Данные персонала успешно загружены из репозитория!", "success");
-        } else {
-          showSyncBanner("Файл пуст или имеет неверную структуру. Загружены локальные демо-данные.", "warning");
         }
 
+        showSyncBanner("Все данные успешно синхронизированы с GitHub!", "success");
+
       } catch (error) {
-        console.error("Ошибка при получении базы сотрудников:", error);
-        showSyncBanner("Не удалось загрузить базу с Github. Используются локальные демо-данные.", "warning");
+        console.error("Критическая ошибка синхронизации:", error);
+        showSyncBanner("Ошибка синхронизации. Используются локальные резервные копии данных.", "warning");
       } finally {
         if (syncIcon) syncIcon.classList.remove('animate-spin');
         renderEmployees();
@@ -469,7 +480,7 @@
       }
     }
 
-    // Показать плашку статуса
+    // Отображение баннера статуса
     function showSyncBanner(text, type = "info") {
       const banner = document.getElementById('sync-banner');
       const textSpan = document.getElementById('sync-banner-text');
@@ -488,10 +499,11 @@
     }
 
     function hideSyncBanner() {
-      document.getElementById('sync-banner').classList.add('hidden');
+      const banner = document.getElementById('sync-banner');
+      if (banner) banner.classList.add('hidden');
     }
 
-    // Вспомогательные расчетные функции
+    // Расчетные функции для интерфейса
     function calculateHours(start, end) {
       if (!start || !end) return 0;
       const startTime = new Date(start);
@@ -518,7 +530,7 @@
       return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     }
 
-    // Рендер списка сотрудников (слева)
+    // Рендер левой колонки (Список персонала)
     function renderEmployees() {
       const listContainer = document.getElementById('employees-list');
       const filtered = employees.filter(emp => 
@@ -596,12 +608,12 @@
       renderDetails();
     }
 
-    // Отрисовка деталей (смен и аналитики) выбранного сотрудника
+    // Отрисовка правой колонки (смены сотрудника / общий дашборд)
     function renderDetails() {
       const container = document.getElementById('details-section');
       
       if (!selectedEmployeeId) {
-        // Общий дашборд компании
+        // Отрисовка сводной панели по всей базе
         let totalPaid = 0;
         let totalUnpaid = 0;
         shifts.forEach(s => {
@@ -617,7 +629,7 @@
             </div>
             <h3 class="text-xl font-bold text-slate-900 mb-2">Панель управления персоналом</h3>
             <p class="text-slate-500 text-sm max-w-md mx-auto mb-8">
-              Выберите сотрудника в левой панели для просмотра его смен, контроля почасовой ставки, отметки о расписках и выплатах.
+              Выберите сотрудника в списке слева для просмотра персональных смен, почасовой ставки, отметки о расписках и детального расчета выплат.
             </p>
 
             <div class="w-full max-w-2xl border border-slate-100 rounded-2xl bg-slate-50/50 p-6">
@@ -643,7 +655,7 @@
         return;
       }
 
-      // Информация по выбранному сотруднику
+      // Информация по сотруднику
       const employee = employees.find(e => e.id === selectedEmployeeId);
       if (!employee) {
         selectedEmployeeId = null;
@@ -655,7 +667,7 @@
         .filter(s => s.employeeId === employee.id)
         .sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
-      // Расчет статистики
+      // Расчет личной статистики
       let totalEarned = 0;
       let paidAmount = 0;
       let unpaidAmount = 0;
@@ -670,11 +682,10 @@
         else unpaidAmount += earned;
       });
 
-      // Рендер деталей
       container.innerHTML = `
         <div class="flex flex-col h-full space-y-6">
           
-          <!-- Шапка карточки сотрудника -->
+          <!-- Шапка карточки -->
           <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div class="flex items-center space-x-4">
@@ -703,7 +714,7 @@
               </button>
             </div>
 
-            <!-- Персональные показатели -->
+            <!-- Показатели сотрудника -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
               <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Всего заработано</p>
@@ -739,7 +750,7 @@
                 <i data-lucide="clock" class="h-4 w-4 text-slate-400"></i>
                 <span>История смен сотрудника</span>
               </h3>
-              <span class="text-xs text-slate-500">Нажмите на смену для управления</span>
+              <span class="text-xs text-slate-500">Нажмите на смену для просмотра и настройки</span>
             </div>
 
             <div class="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[calc(100vh-420px)]">
@@ -747,7 +758,7 @@
                 <div class="p-12 text-center text-slate-400">
                   <i data-lucide="calendar" class="h-12 w-12 mx-auto mb-3 opacity-30 text-slate-400"></i>
                   <p class="text-sm font-medium">Смен пока нет</p>
-                  <p class="text-xs text-slate-400 mt-1">Добавьте первую смену сотрудника с помощью кнопки выше</p>
+                  <p class="text-xs text-slate-400 mt-1">Добавьте новую смену сотрудника с помощью кнопки выше</p>
                 </div>
               ` : empShifts.map(s => {
                 const hours = calculateHours(s.startTime, s.endTime);
@@ -823,7 +834,7 @@
       renderEmployees();
     }
 
-    // Редактирование существующего сотрудника
+    // Редактировать карточку сотрудника
     function editEmployee(employeeId) {
       openEmployeeModal(employeeId);
     }
@@ -875,11 +886,11 @@
           emp.id === id ? { ...emp, name, role, phone } : emp
         );
       } else {
-        // Создание нового
+        // Создание
         const newId = Date.now().toString();
         const newEmp = { id: newId, name, role, phone };
         employees.push(newEmp);
-        selectedEmployeeId = newId; // Автовыбор
+        selectedEmployeeId = newId;
       }
 
       closeEmployeeModal();
@@ -913,7 +924,6 @@
       subtitle.innerText = `Сотрудник: ${currentEmp.name} (${currentEmp.role || 'Без должности'})`;
 
       if (shiftId) {
-        // Редактирование существующей
         const shift = shifts.find(s => s.id === shiftId);
         if (shift) {
           title.innerText = 'Детали рабочей смены';
@@ -928,7 +938,6 @@
           delBtn.classList.remove('hidden');
         }
       } else {
-        // Создание новой
         title.innerText = 'Создать новую смену';
         document.getElementById('shift-id').value = '';
         
@@ -938,7 +947,7 @@
         const startIso = now.toISOString().slice(0, 16);
         const endIso = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16); // +8 часов
 
-        // Автозаполнение ставки из последней смены сотрудника (если есть)
+        // Автозаполнение ставки из последней смены сотрудника
         const empShifts = shifts.filter(s => s.employeeId === selectedEmployeeId);
         const defaultRate = empShifts.length > 0 ? empShifts[empShifts.length - 1].rate : 300;
 
@@ -963,7 +972,6 @@
       modal.classList.remove('flex');
     }
 
-    // Переключение расписки
     function setReceiptState(hasReceipt) {
       tempReceiptState = hasReceipt;
       const yesBtn = document.getElementById('btn-receipt-yes');
@@ -979,7 +987,6 @@
       checkWarningBox();
     }
 
-    // Переключение оплаты
     function setPaidState(isPaid) {
       tempPaidState = isPaid;
       const yesBtn = document.getElementById('btn-paid-yes');
@@ -995,7 +1002,6 @@
       checkWarningBox();
     }
 
-    // Логика предупреждения несоответствия оплаты и расписки
     function checkWarningBox() {
       const warningBox = document.getElementById('warning-box');
       if (!tempPaidState && tempReceiptState) {
@@ -1007,7 +1013,6 @@
       }
     }
 
-    // Интерактивный пересчет заработка прямо в модальном окне
     function recalculateShiftMetrics() {
       const start = document.getElementById('shift-start').value;
       const end = document.getElementById('shift-end').value;
@@ -1020,7 +1025,6 @@
       document.getElementById('shift-calculated-earnings').innerText = `${earnings.toLocaleString('ru-RU')} ₽`;
     }
 
-    // Сохранение смены
     function saveShift(event) {
       event.preventDefault();
       const shiftId = document.getElementById('shift-id').value;
@@ -1043,10 +1047,8 @@
       };
 
       if (shiftId) {
-        // Обновление существующей
         shifts = shifts.map(s => s.id === shiftId ? { ...s, ...updatedShiftData } : s);
       } else {
-        // Создание новой
         const newShift = {
           id: 'shift_' + Date.now(),
           ...updatedShiftData
@@ -1059,7 +1061,6 @@
       renderEmployees();
     }
 
-    // Удаление смены
     function deleteCurrentShift() {
       const shiftId = document.getElementById('shift-id').value;
       if (!shiftId) return;
@@ -1075,8 +1076,7 @@
 
     // Инициализация при загрузке страницы
     window.onload = function() {
-      // Сначала пытаемся загрузить сотрудников из внешней БД
-      loadEmployeesFromDatabase();
+      syncWithRepository();
     };
   </script>
 </body>
