@@ -3,513 +3,961 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление сменами персонала</title>
-    <!-- Подключение Tailwind CSS для современного дизайна -->
+    <title>Контроль расходов - Кейтеринг</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Дополнительные стили для кастомных скроллбаров и плавных переходов */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #f1f5f9;
         }
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
-            border-radius: 3px;
+            border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
 
-    <div class="container mx-auto px-4 py-6 max-w-6xl">
-        
-        <!-- Шапка приложения -->
-        <header class="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                        <span class="text-3xl">📊</span> Учёт рабочих смен и расчёты
-                    </h1>
-                    <p class="text-sm text-slate-500 mt-1">
-                        Автоматический импорт данных из репозитория she2pbis-byte/vn
-                    </p>
-                </div>
-                
-                <!-- Кнопка быстрой очистки локального кэша ставок при необходимости -->
-                <button onclick="clearAllData()" class="text-xs text-red-500 hover:text-red-700 font-medium transition flex items-center gap-1 self-start md:self-center">
-                    ✕ Сбросить все сохранённые ставки
-                </button>
-            </div>
-            
-            <!-- Панель управления интеграцией с GitHub -->
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <h3 class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    🔑 Авторизация GitHub
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">
-                            Personal Access Token (Необходим для приватных репозиториев)
-                        </label>
-                        <input type="password" id="ghToken" 
-                            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-inner" 
-                            placeholder="Вставьте ваш ghp_... токен">
+    <!-- Шапка приложения -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-indigo-600 text-white rounded-lg">
+                        <i data-lucide="wallet" class="w-6 h-6"></i>
                     </div>
                     <div>
-                        <button onclick="loadData()" 
-                            class="w-full px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition shadow-sm flex items-center justify-center gap-2">
-                            <span>🔄</span> Загрузить данные
-                        </button>
+                        <h1 class="text-xl font-bold text-slate-900">VN Control</h1>
+                        <p class="text-xs text-slate-500">Учет расходов и выплат персоналу</p>
                     </div>
                 </div>
-                <div id="statusMessage" class="mt-3 text-xs font-medium hidden"></div>
-            </div>
-        </header>
-
-        <!-- Основной блок вывода информации -->
-        <main>
-            <!-- Сводная аналитика (появляется после загрузки данных) -->
-            <section id="statsPanel" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs text-slate-500 font-medium">Всего сотрудников</div>
-                    <div id="totalStaff" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+                <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
+                    <button onclick="switchTab('catering')" id="tab-catering" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-white text-indigo-600 shadow-sm">
+                        Кейтеринг
+                    </button>
+                    <button onclick="switchTab('buffet')" id="tab-buffet" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-600 hover:text-slate-900">
+                        Буфет
+                    </button>
+                    <button onclick="switchTab('report')" id="tab-report" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-600 hover:text-slate-900">
+                        Отчет
+                    </button>
                 </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs text-slate-500 font-medium">Всего запланировано смен</div>
-                    <div id="totalShifts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs text-slate-500 font-medium">Общая сумма к выплате</div>
-                    <div id="totalPayout" class="text-2xl font-bold text-green-600 mt-1">0 ₽</div>
-                </div>
-            </section>
-
-            <!-- Контейнер для списка сотрудников -->
-            <div id="staffContainer" class="space-y-6">
-                <div class="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                    <div class="text-4xl mb-4">📂</div>
-                    <h3 class="text-lg font-semibold text-slate-800">Данные еще не загружены</h3>
-                    <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-                        Укажите ваш персональный токен GitHub (если репозиторий приватный) и нажмите кнопку загрузки.
-                    </p>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Модальное окно подтверждения удаления (вместо стандартных alert) -->
-    <div id="confirmModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-lg max-w-sm w-full p-6 border border-slate-200">
-            <h3 class="text-lg font-bold text-slate-900 mb-2">Вы уверены?</h3>
-            <p class="text-sm text-slate-500 mb-5">Это действие безвозвратно удалит все сохраненные вами ставки, отметки ордеров и оплат.</p>
-            <div class="flex justify-end gap-3">
-                <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-medium rounded-lg transition">Отмена</button>
-                <button onclick="executeClear()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition">Да, стереть</button>
             </div>
         </div>
-    </div>
+    </header>
 
-    <script>
-        // Исходные реквизиты репозитория
-        const OWNER = 'she2pbis-byte';
-        const REPO = 'vn';
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        // Переменные для глобального хранения загруженных данных
-        let globalStaffDb = null;
-        let globalEventsDb = null;
+        <!-- РАЗДЕЛ: КЕЙТЕРИНГ -->
+        <div id="section-catering" class="space-y-6">
+            <!-- Панель фильтров и поиска -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-80">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </span>
+                    <input type="text" id="search-input" oninput="filterStaff()" placeholder="Поиск сотрудника..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-slate-50">
+                </div>
+                
+                <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                    <select id="date-filter" onchange="filterStaff()" class="py-2 px-3 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Все даты</option>
+                    </select>
+                    <button onclick="resetData()" class="py-2 px-3 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg text-sm flex items-center gap-1 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сбросить расчеты
+                    </button>
+                </div>
+            </div>
 
-        // При загрузке страницы пробуем достать сохраненный токен
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedToken = localStorage.getItem('vn_gh_token');
-            if (savedToken) {
-                document.getElementById('ghToken').value = savedToken;
+            <!-- Сводные данные -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Всего назначений</p>
+                        <p id="stat-total-jobs" class="text-2xl font-bold text-slate-900">0</p>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                        <i data-lucide="hourglass" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Отработано часов всего</p>
+                        <p id="stat-total-hours" class="text-2xl font-bold text-slate-900">0 ч</p>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <i data-lucide="banknote" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Общая сумма к выплате</p>
+                        <p id="stat-total-amount" class="text-2xl font-bold text-slate-950">0 ₽</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Сетка карточек сотрудников -->
+            <div id="catering-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Карточки будут добавлены динамически -->
+                <div class="col-span-full py-12 text-center text-slate-400">
+                    <div class="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-indigo-600 rounded-full mb-2" role="status"></div>
+                    <p>Загрузка данных из репозитория...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- РАЗДЕЛ: БУФЕТ (Заглушка) -->
+        <div id="section-buffet" class="hidden min-h-[400px] flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+            <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+                <i data-lucide="coffee" class="w-10 h-10 text-amber-500"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Раздел «Буфет» находится в разработке</h2>
+            <p class="text-slate-500 max-w-md">Здесь будет располагаться интерфейс контроля расходов буфетных накрытий и точек питания.</p>
+        </div>
+
+        <!-- РАЗДЕЛ: ОТЧЕТ (Заглушка) -->
+        <div id="section-report" class="hidden min-h-[400px] flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+            <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
+                <i data-lucide="bar-chart-3" class="w-10 h-10 text-indigo-500"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Раздел «Отчет» находится в разработке</h2>
+            <p class="text-slate-500 max-w-md">В этом разделе будут формироваться сводные графики, экспорт ведомостей в Excel и общая финансовая аналитика.</p>
+        </div>
+
+    </main>
+
+    <!-- Подвал -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500">
+            &copy; 2026 VN Control. Система управления расходами кейтеринга.
+        </div>
+    </footer>
+
+    <!-- JS Логика приложения -->
+    <script>
+        // Резервные копии данных, если не удастся загрузить из репозитория напрямую
+        const backupStaffDb = [
+            {"name": "Авдонин", "phone": "+7 (920) 126-45-04"},
+            {"name": "Борисова", "phone": "+7 (910) 819-64-60"},
+            {"name": "Гайсина", "phone": "+7 (964) 136-18-00"},
+            {"name": "Капралов", "phone": "+7 (920) 118-81-28"},
+            {"name": "Козлова", "phone": "+7 (924) 402-56-99"},
+            {"name": "Коршунов", "phone": "+7 (920) 143-13-96"},
+            {"name": "Никулина", "phone": "+7 (920) 141-82-30"},
+            {"name": "Орехина", "phone": "+79012749063"},
+            {"name": "Пастухова", "phone": "+7 (915) 966-21-51"},
+            {"name": "Прохоров", "phone": "+7 (980) 704-60-58"},
+            {"name": "Салина", "phone": "+7 (903) 824-18-07"},
+            {"name": "Сухановская", "phone": "+79036468034"},
+            {"name": "Телов", "phone": "+7 (996) 926-51-72"}
+        ];
+
+        // Предоставленный JSON мероприятий
+        const backupEventsData = [
+            {
+                "id": "1776088130144",
+                "name": "Диво",
+                "date": "2026-07-24",
+                "start": "",
+                "end": "",
+                "format": "Банкет",
+                "displayDate": "24 июль",
+                "staff": [
+                    {"id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
+                    {"id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "phone": "+79012749063"},
+                    {"id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "phone": "+79807046058"},
+                    {"id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "phone": "79038241807"}
+                ]
+            },
+            {
+                "id": "1776111416416",
+                "name": "ПЯО",
+                "date": "2026-05-09",
+                "start": "08:00",
+                "end": "16:00",
+                "format": "Кофе-брейк",
+                "displayDate": "9 май",
+                "staff": [
+                    {"id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": {"Официант": true}},
+                    {"id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "phone": "+79244025699", "rolePaid": {"Официант": true}},
+                    {"id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": {"Официант": true}},
+                    {"id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "phone": "+79969265172", "rolePaid": {"Официант": true}}
+                ]
+            },
+            {
+                "id": "1776111545652",
+                "name": "Мэрия",
+                "date": "2026-05-30",
+                "start": "09:30",
+                "end": "10:00",
+                "format": "Кофе-брейк",
+                "displayDate": "30 май",
+                "staff": [
+                    {"id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
+                    {"id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
+                    {"id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
+                ]
+            },
+            {
+                "id": "1776111678750",
+                "name": "Квартирник",
+                "date": "2026-05-29",
+                "start": "",
+                "end": "",
+                "format": "Банкет",
+                "displayDate": "29 май",
+                "staff": [
+                    {"id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
+                    {"id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "phone": "+79201431396"},
+                    {"id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
+                ]
+            },
+            {
+                "id": "1776111860018",
+                "name": "Космопикник",
+                "date": "2026-06-16",
+                "start": "",
+                "end": "",
+                "format": "Несколько накрытий",
+                "displayDate": "16 июнь",
+                "staff": [
+                    {"id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
+                    {"id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
+                    {"id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
+                ]
+            },
+            {
+                "id": "1777537309462",
+                "name": "Прокуратура",
+                "date": "2026-05-07",
+                "start": "10:30",
+                "end": "20:00",
+                "format": "Несколько накрытий",
+                "displayDate": "7 май",
+                "staff": [
+                    {"id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"]},
+                    {"id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"]},
+                    {"id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777537523148",
+                "name": "Диво (Роман)",
+                "date": "2026-08-09",
+                "start": "14:00",
+                "end": "23:00",
+                "format": "Фуршет",
+                "displayDate": "9 август",
+                "staff": [
+                    {"id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"]},
+                    {"id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777884055273",
+                "name": "ПСМ",
+                "date": "2026-06-09",
+                "start": "",
+                "end": "",
+                "format": "Фуршет",
+                "displayDate": "9 июнь",
+                "staff": [
+                    {"id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777886866511",
+                "name": "Забег СБЕР",
+                "date": "2026-05-30",
+                "start": "08:30",
+                "end": "12:30",
+                "format": "Несколько накрытий",
+                "displayDate": "30 май",
+                "staff": [
+                    {"id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777889177428",
+                "name": "Школа 21 Сбер",
+                "date": "2026-05-20",
+                "start": "09:00",
+                "end": "12:00",
+                "format": "Кофе-брейк",
+                "displayDate": "20 май",
+                "staff": [
+                    {"id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777889232148",
+                "name": "Белояр",
+                "date": "2026-05-22",
+                "start": "16:30",
+                "end": "18:00",
+                "format": "Фуршет",
+                "displayDate": "22 май",
+                "staff": [
+                    {"id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"]},
+                    {"id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"]},
+                    {"id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"]},
+                    {"id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777889332128",
+                "name": "Забег ПСБ",
+                "date": "2026-05-23",
+                "start": "07:00",
+                "end": "15:00",
+                "format": "Фуршет",
+                "displayDate": "23 май",
+                "staff": [
+                    {"id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777890729728",
+                "name": "Сбер",
+                "date": "2026-05-19",
+                "start": "08:30",
+                "end": "15:30",
+                "format": "Кофе-брейк",
+                "displayDate": "19 май",
+                "staff": [
+                    {"id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"]},
+                    {"id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777890794176",
+                "name": "Сбер",
+                "date": "2026-05-20",
+                "start": "08:30",
+                "end": "15:30",
+                "format": "Кофе-брейк",
+                "displayDate": "20 май",
+                "staff": [
+                    {"id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"]},
+                    {"id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777890876158",
+                "name": "Сбер",
+                "date": "2026-05-21",
+                "start": "08:30",
+                "end": "15:30",
+                "format": "Кофе-брейк",
+                "displayDate": "21 май",
+                "staff": [
+                    {"id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1777890925842",
+                "name": "Сбер",
+                "date": "2026-05-22",
+                "start": "08:30",
+                "end": "11:30",
+                "format": "Кофе-брейк",
+                "displayDate": "22 май",
+                "staff": [
+                    {"id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778215141510",
+                "name": "Школа 21 Сбер",
+                "date": "2026-05-21",
+                "start": "09:00",
+                "end": "12:00",
+                "format": "Кофе-брейк",
+                "displayDate": "21 май",
+                "staff": [
+                    {"id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778678455822",
+                "name": "Единая Россия",
+                "date": "2026-06-02",
+                "start": "12:30",
+                "end": "15:30",
+                "format": "Кофе-брейк",
+                "displayDate": "2 июнь",
+                "staff": [
+                    {"id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"]},
+                    {"id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"]},
+                    {"id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"]},
+                    {"id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778743503713",
+                "name": "Белояр",
+                "date": "2026-05-23",
+                "start": "10:30",
+                "end": "12:30",
+                "format": "Фуршет",
+                "displayDate": "23 май",
+                "staff": [
+                    {"id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"]},
+                    {"id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778758318139",
+                "name": "Диво (Ганненко П.В.)",
+                "date": "2026-06-19",
+                "start": "",
+                "end": "",
+                "format": "Банкет",
+                "displayDate": "19 июнь",
+                "staff": [
+                    {"id": "1778758518243", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1778758528412", "name": "Салина", "phone": "+7 (903) 824-18-07", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778765125637",
+                "name": "Эндоскописты",
+                "date": "2026-06-19",
+                "start": "08:00",
+                "end": "18:00",
+                "format": "Кофе-брейк",
+                "displayDate": "19 июнь",
+                "staff": [
+                    {"id": "1778960623761", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778765220819",
+                "name": "Эндоскописты",
+                "date": "2026-06-20",
+                "start": "08:00",
+                "end": "18:00",
+                "format": "Кофе-брейк",
+                "displayDate": "20 июнь",
+                "staff": [
+                    {"id": "1778931344347", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "06:00", "end": "20:00", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1778828336804",
+                "name": "Белояр",
+                "date": "2026-08-08",
+                "start": "",
+                "end": "",
+                "format": "Несколько накрытий",
+                "displayDate": "8 август",
+                "staff": [
+                    {"id": "1778829694525", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1778829670779", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
+                ]
+            },
+            {
+                "id": "1779369787842",
+                "name": "В кругу семьи",
+                "date": "2026-06-07",
+                "start": "",
+                "end": "",
+                "format": "",
+                "displayDate": "7 июнь",
+                "staff": [
+                    {"id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
+                    {"id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
+                ]
             }
+        ];
+
+        // Глобальные состояния
+        let staffDatabase = [];
+        let eventsData = [];
+        let flatStaffList = []; // Преобразованный список смен
+        let userSettings = {}; // Хранение ставок, кастомного времени и чекбоксов (localStorage)
+
+        // Инициализация при загрузке
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadSavedSettings();
+            await fetchData();
+            processData();
+            buildDateFilter();
+            renderCatering();
+            lucide.createIcons();
         });
 
-        // Форматирование даты в формат DD.MM
-        function formatDate(dateString) {
-            if (!dateString) return '—';
-            const date = new Date(dateString);
-            if (isNaN(date)) {
-                // Если дата пришла в нестандартном виде, пробуем достать регуляркой
-                const match = dateString.match(/(\d{4})[-./](\d{2})[-./](\d{2})/);
-                if (match) return `${match[3]}.${match[2]}`;
-                return dateString;
-            }
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            return `${day}.${month}`;
-        }
-
-        // Вычисление разницы во времени в часах между HH:MM прихода и ухода
-        function calculateHours(timeIn, timeOut) {
-            if (!timeIn || !timeOut || timeIn === '—' || timeOut === '—') return 0;
-            
-            try {
-                const [hIn, mIn] = timeIn.split(':').map(Number);
-                const [hOut, mOut] = timeOut.split(':').map(Number);
-                
-                if (isNaN(hIn) || isNaN(mIn) || isNaN(hOut) || isNaN(mOut)) return 0;
-                
-                let startMinutes = hIn * 60 + mIn;
-                let endMinutes = hOut * 60 + mOut;
-                
-                // Если уход на следующий день (например пришли в 22:00, ушли в 04:00)
-                if (endMinutes < startMinutes) {
-                    endMinutes += 24 * 60;
+        // Загрузка сохраненных ставок и статусов оплат из LocalStorage
+        function loadSavedSettings() {
+            const saved = localStorage.getItem('vn_expense_settings');
+            if (saved) {
+                try {
+                    userSettings = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Ошибка при чтении настроек:", e);
+                    userSettings = {};
                 }
-                
-                return parseFloat(((endMinutes - startMinutes) / 60).toFixed(2));
-            } catch (e) {
-                return 0;
             }
         }
 
-        // Уникальный ключ для localStorage
-        function getStorageKey(staffId, eventId) {
-            return `shift_meta_${staffId}_${eventId}`;
+        // Сохранение настроек в LocalStorage
+        function saveSettings() {
+            localStorage.setItem('vn_expense_settings', JSON.stringify(userSettings));
+            updateStats();
         }
 
-        // Сохранение отредактированных пользователем полей
-        function saveShiftMeta(staffId, eventId, field, value) {
-            const key = getStorageKey(staffId, eventId);
-            const currentData = JSON.parse(localStorage.getItem(key)) || { rate: '', order: false, paid: false };
-            currentData[field] = value;
-            localStorage.setItem(key, JSON.stringify(currentData));
-            
-            // Если изменилась ставка, пересчитываем динамически итоговые суммы без полной перезагрузки структуры
-            if (field === 'rate') {
-                updateVisualCalculation(staffId, eventId, value);
+        // Сбросить сохраненные расчеты
+        function resetData() {
+            if (confirm("Вы уверены, что хотите сбросить все введенные ставки, часы и отметки об оплате?")) {
+                userSettings = {};
+                localStorage.removeItem('vn_expense_settings');
+                processData();
+                renderCatering();
             }
-            updateTotalStatsSummary();
         }
 
-        // Получение сохраненных значений полей
-        function getShiftMeta(staffId, eventId) {
-            const key = getStorageKey(staffId, eventId);
-            return JSON.parse(localStorage.getItem(key)) || { rate: '', order: false, paid: false };
-        }
-
-        // Обновление отображения суммы за конкретную смену "на лету"
-        function updateVisualCalculation(staffId, eventId, rateValue) {
-            const sumEl = document.getElementById(`sum_${staffId}_${eventId}`);
-            const hoursEl = document.getElementById(`hours_${staffId}_${eventId}`);
-            if (sumEl && hoursEl) {
-                const hours = parseFloat(hoursEl.dataset.hours || 0);
-                const rate = parseFloat(rateValue || 0);
-                if (rate > 0 && hours > 0) {
-                    sumEl.textContent = `${Math.round(hours * rate)} ₽`;
-                    sumEl.parentElement.classList.remove('invisible');
+        // Запрос данных из репозитория GitHub или fallback на локальные данные
+        async function fetchData() {
+            try {
+                // Попытка загрузить БД персонала
+                const staffResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json');
+                if (staffResponse.ok) {
+                    staffDatabase = await staffResponse.json();
                 } else {
-                    sumEl.parentElement.classList.add('invisible');
+                    throw new Error("Не удалось загрузить БД сотрудников");
                 }
+            } catch (error) {
+                console.warn("Локальный fallback для базы сотрудников:", error);
+                staffDatabase = backupStaffDb;
             }
-        }
-
-        // Запрос файла с GitHub API
-        async function fetchGitHubFile(path, token) {
-            const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`;
-            const headers = { 'Accept': 'application/vnd.github.v3.raw' };
-            if (token) {
-                headers['Authorization'] = `token ${token}`;
-            }
-
-            const response = await fetch(url, { headers });
-            if (!response.ok) {
-                throw new Error(`Файл "${path}" не найден в репозитории (${response.status})`);
-            }
-            return await response.json();
-        }
-
-        // Логика загрузки
-        async function loadData() {
-            const token = document.getElementById('ghToken').value.trim();
-            const statusDiv = document.getElementById('statusMessage');
-            const container = document.getElementById('staffContainer');
-
-            if (token) {
-                localStorage.setItem('vn_gh_token', token);
-            } else {
-                localStorage.removeItem('vn_gh_token');
-            }
-
-            // Показываем прелоадер
-            statusDiv.className = "mt-3 text-xs font-medium text-amber-600 block animate-pulse";
-            statusDiv.textContent = "⌛ Подключение к GitHub API и загрузка конфигураций...";
-            
-            container.innerHTML = `
-                <div class="text-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mb-4"></div>
-                    <p class="text-slate-500 text-sm">Получение файлов staff_database.json и events_data.json...</p>
-                </div>
-            `;
 
             try {
-                // Параллельный запуск запросов
-                const [staffDb, eventsDb] = await Promise.all([
-                    fetchGitHubFile('staff_database.json', token),
-                    fetchGitHubFile('events_data.json', token)
-                ]);
-
-                globalStaffDb = staffDb;
-                globalEventsDb = eventsDb;
-
-                statusDiv.className = "mt-3 text-xs font-medium text-green-600 block";
-                statusDiv.textContent = "✅ Данные успешно загружены и сопоставлены!";
-
-                // Отрисовка
-                renderDashboard(staffDb, eventsDb);
-
+                // Попытка загрузить мероприятия
+                const eventsResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json');
+                if (eventsResponse.ok) {
+                    eventsData = await eventsResponse.json();
+                } else {
+                    throw new Error("Не удалось загрузить данные мероприятий");
+                }
             } catch (error) {
-                statusDiv.className = "mt-3 text-xs font-medium text-red-600 block";
-                statusDiv.textContent = `❌ Ошибка: ${error.message}. Убедитесь, что файлы лежат в корне репозитория и токен верен.`;
-                
-                container.innerHTML = `
-                    <div class="text-center py-12 text-red-600 bg-red-50 rounded-2xl border border-red-200">
-                        <span class="text-2xl">⚠️</span>
-                        <h4 class="font-bold mt-2">Не удалось импортировать файлы</h4>
-                        <p class="text-xs text-red-500 mt-1 max-w-lg mx-auto">${error.message}</p>
-                    </div>
-                `;
+                console.warn("Локальный fallback для данных мероприятий:", error);
+                eventsData = backupEventsData;
             }
         }
 
-        // Рендеринг основного дашборда
-        function renderDashboard(staffDb, eventsDb) {
-            const container = document.getElementById('staffContainer');
-            container.innerHTML = '';
+        // Обработка данных: разворачивание назначений сотрудников в линейный список смен
+        function processData() {
+            flatStaffList = [];
 
-            // Стандартизируем получение списка сотрудников
-            const staffList = Array.isArray(staffDb) ? staffDb : (staffDb.staff || staffDb.users || []);
-            const eventsList = Array.isArray(eventsDb) ? eventsDb : (eventsDb.events || []);
+            eventsData.forEach(event => {
+                if (!event.staff || event.staff.length === 0) return;
 
-            // Словарь для быстрой привязки смен к сотруднику
-            const staffMap = {};
-            staffList.forEach(member => {
-                const id = member.id !== undefined ? String(member.id) : null;
-                if (id) {
-                    staffMap[id] = {
-                        id: id,
-                        name: member.name || member.fio || "Без имени",
-                        shifts: []
-                    };
-                }
-            });
-
-            // Наполнение сотрудников сменами из структуры мероприятий
-            eventsList.forEach(event => {
-                const eventStaff = event.staff || event.personal || [];
-                eventStaff.forEach(shiftInfo => {
-                    const staffId = shiftInfo.id !== undefined ? String(shiftInfo.id) : (shiftInfo.staff_id !== undefined ? String(shiftInfo.staff_id) : null);
+                event.staff.forEach(person => {
+                    // Идентификатор уникального назначения (мероприятие + сотрудник)
+                    const shiftId = `${event.id}_${person.id}`;
                     
-                    if (staffId && staffMap[staffId]) {
-                        staffMap[staffId].shifts.push({
-                            eventId: event.id || Math.random().toString(36).substring(2, 9),
-                            eventName: event.name || event.title || "Без названия",
-                            eventDate: event.date || '',
-                            timeIn: shiftInfo.time_in || shiftInfo.start || '—',
-                            timeOut: shiftInfo.time_out || shiftInfo.end || '—'
-                        });
-                    }
-                });
-            });
+                    // Поиск оригинального телефона в БД персонала
+                    const dbPerson = staffDatabase.find(p => p.name.toLowerCase() === person.name.toLowerCase());
+                    const phone = person.phone || (dbPerson ? dbPerson.phone : '—');
 
-            // Генерация визуальных карточек сотрудников
-            let renderedCardsCount = 0;
-            let totalShiftsCount = 0;
+                    // Поиск пользовательских параметров в сохраненных настройках
+                    const custom = userSettings[shiftId] || {};
 
-            Object.values(staffMap).forEach(person => {
-                // Если у сотрудника вообще нет смен, не захламляем экран
-                if (person.shifts.length === 0) return;
+                    // Вычисляем время и часы
+                    // 1. Приоритеты для Времени Прихода: Ввод пользователя -> Время из staff -> Время старта события -> пусто
+                    const timeIn = custom.timeIn !== undefined ? custom.timeIn : (person.time || event.start || '');
+                    
+                    // 2. Приоритеты для Времени Ухода: Ввод пользователя -> Время из staff -> Время окончания события -> пусто
+                    const timeOut = custom.timeOut !== undefined ? custom.timeOut : (person.end || event.end || '');
 
-                renderedCardsCount++;
-                totalShiftsCount += person.shifts.length;
+                    // Расчет часов
+                    let hours = 0;
+                    let isCalculated = false;
 
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition duration-200";
-
-                // Конструктор заголовка карточки сотрудника
-                let cardHtml = `
-                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center gap-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
-                                ${person.name.charAt(0).toUpperCase()}
-                            </div>
-                            <h2 class="text-base font-bold text-slate-800">${person.name}</h2>
-                        </div>
-                        <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-lg border border-blue-200">
-                            Смен: ${person.shifts.length}
-                        </span>
-                    </div>
-                    <div class="divide-y divide-slate-100">
-                `;
-
-                // Список смен сотрудника
-                person.shifts.forEach(shift => {
-                    const savedMeta = getShiftMeta(person.id, shift.eventId);
-                    const hoursWorked = calculateHours(shift.timeIn, shift.timeOut);
-                    const hasCalc = hoursWorked > 0 && parseFloat(savedMeta.rate) > 0;
-                    const calculatedSum = hasCalc ? Math.round(hoursWorked * parseFloat(savedMeta.rate)) : 0;
-
-                    cardHtml += `
-                        <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center hover:bg-slate-50/30 transition">
-                            
-                            <!-- 1. Дата и название мероприятия -->
-                            <div class="lg:col-span-4 flex items-center gap-4">
-                                <div class="flex-shrink-0 w-14 py-2 bg-blue-50 text-blue-700 rounded-xl text-center border border-blue-100">
-                                    <div class="text-xs font-semibold uppercase tracking-wider">Дата</div>
-                                    <div class="text-sm font-bold">${formatDate(shift.eventDate)}</div>
-                                </div>
-                                <div class="min-w-0">
-                                    <h4 class="text-sm font-semibold text-slate-900 truncate">${shift.eventName}</h4>
-                                    <p class="text-xs text-slate-400 mt-0.5">ID события: ${shift.eventId}</p>
-                                </div>
-                            </div>
-
-                            <!-- 2. Время прихода/ухода и расчет часов -->
-                            <div class="lg:col-span-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                                <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded">
-                                    <span class="text-slate-400">Вход:</span>
-                                    <span class="font-semibold text-slate-700">${shift.timeIn}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded">
-                                    <span class="text-slate-400">Выход:</span>
-                                    <span class="font-semibold text-slate-700">${shift.timeOut}</span>
-                                </div>
-                                <div id="hours_${person.id}_${shift.eventId}" data-hours="${hoursWorked}" class="text-slate-500 mt-1 w-full">
-                                    Отработано: <span class="font-bold text-slate-700">${hoursWorked} ч.</span>
-                                </div>
-                            </div>
-
-                            <!-- 3. Почасовая ставка (ввод вручную) -->
-                            <div class="lg:col-span-2 flex items-center gap-2">
-                                <div class="w-full">
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ставка (₽/ч)</label>
-                                    <div class="relative rounded-md shadow-sm">
-                                        <input type="number" 
-                                            value="${savedMeta.rate}" 
-                                            oninput="saveShiftMeta('${person.id}', '${shift.eventId}', 'rate', this.value)"
-                                            class="w-full pl-3 pr-8 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-slate-700 font-medium" 
-                                            placeholder="—">
-                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                            <span class="text-slate-400 text-xs">₽</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 4. Чекбоксы (кассовый ордер и оплата) -->
-                            <div class="lg:col-span-3 flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 pt-4 lg:pt-0">
-                                
-                                <!-- Сумма (калькулятор на лету) -->
-                                <div class="text-right min-w-[70px] ${hasCalc ? '' : 'invisible'}">
-                                    <span class="block text-[10px] font-bold text-slate-400 uppercase">Итого</span>
-                                    <span id="sum_${person.id}_${shift.eventId}" class="text-sm font-bold text-slate-950">
-                                        ${calculatedSum} ₽
-                                    </span>
-                                </div>
-
-                                <div class="flex gap-4">
-                                    <!-- Ордер -->
-                                    <label class="flex flex-col items-center gap-1 cursor-pointer group">
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase transition group-hover:text-slate-600">Ордер</span>
-                                        <input type="checkbox" 
-                                            ${savedMeta.order ? 'checked' : ''} 
-                                            onchange="saveShiftMeta('${person.id}', '${shift.eventId}', 'order', this.checked)"
-                                            class="w-5 h-5 text-blue-600 rounded-md border-slate-300 focus:ring-blue-500 transition cursor-pointer">
-                                    </label>
-                                    
-                                    <!-- Оплата -->
-                                    <label class="flex flex-col items-center gap-1 cursor-pointer group">
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase transition group-hover:text-slate-600">Оплата</span>
-                                        <input type="checkbox" 
-                                            ${savedMeta.paid ? 'checked' : ''} 
-                                            onchange="saveShiftMeta('${person.id}', '${shift.eventId}', 'paid', this.checked)"
-                                            class="w-5 h-5 text-emerald-600 rounded-md border-slate-300 focus:ring-emerald-500 transition cursor-pointer">
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                cardHtml += `</div>`;
-                card.innerHTML = cardHtml;
-                container.appendChild(card);
-            });
-
-            // Обновляем верхние аналитические панели
-            document.getElementById('totalStaff').textContent = renderedCardsCount;
-            document.getElementById('totalShifts').textContent = totalShiftsCount;
-            document.getElementById('statsPanel').classList.remove('hidden');
-
-            updateTotalStatsSummary();
-        }
-
-        // Вычисление глобальной суммы всех ставок
-        function updateTotalStatsSummary() {
-            if (!globalStaffDb || !globalEventsDb) return;
-
-            const staffList = Array.isArray(globalStaffDb) ? globalStaffDb : (globalStaffDb.staff || globalStaffDb.users || []);
-            const eventsList = Array.isArray(globalEventsDb) ? globalEventsDb : (globalEventsDb.events || []);
-            
-            let grandTotal = 0;
-
-            staffList.forEach(member => {
-                const staffId = member.id !== undefined ? String(member.id) : null;
-                if (!staffId) return;
-
-                eventsList.forEach(event => {
-                    const eventStaff = event.staff || event.personal || [];
-                    eventStaff.forEach(shiftInfo => {
-                        const shiftStaffId = shiftInfo.id !== undefined ? String(shiftInfo.id) : (shiftInfo.staff_id !== undefined ? String(shiftInfo.staff_id) : null);
+                    if (timeIn && timeOut) {
+                        const [hIn, mIn] = timeIn.split(':').map(Number);
+                        const [hOut, mOut] = timeOut.split(':').map(Number);
                         
-                        if (shiftStaffId === staffId) {
-                            const meta = getShiftMeta(staffId, event.id);
-                            const hours = calculateHours(shiftInfo.time_in || shiftInfo.start || '—', shiftInfo.time_out || shiftInfo.end || '—');
-                            const rate = parseFloat(meta.rate || 0);
-                            if (hours > 0 && rate > 0) {
-                                grandTotal += Math.round(hours * rate);
+                        if (!isNaN(hIn) && !isNaN(mIn) && !isNaN(hOut) && !isNaN(mOut)) {
+                            let diffMinutes = (hOut * 60 + mOut) - (hIn * 60 + mIn);
+                            // Если ушли на следующий день
+                            if (diffMinutes < 0) {
+                                diffMinutes += 24 * 60;
                             }
+                            hours = parseFloat((diffMinutes / 60).toFixed(2));
+                            isCalculated = true;
                         }
+                    }
+
+                    // Если автоматического расчета нет, берем ручное значение часов от пользователя (по дефолту 0)
+                    if (!isCalculated && custom.manualHours !== undefined) {
+                        hours = parseFloat(custom.manualHours) || 0;
+                    } else if (!isCalculated) {
+                        hours = 0; // Изначально пустое, если нет времени события
+                    }
+
+                    const rate = custom.rate !== undefined ? parseFloat(custom.rate) : 0;
+                    const amount = parseFloat((hours * rate).toFixed(2));
+
+                    flatStaffList.push({
+                        shiftId,
+                        eventId: event.id,
+                        eventName: event.name,
+                        eventFormat: event.format || 'Кейтеринг',
+                        eventDate: event.date,
+                        displayDate: event.displayDate || event.date,
+                        personId: person.id,
+                        personName: person.name,
+                        phone: phone,
+                        role: person.rolesDisplay || (person.roles ? person.roles.join(', ') : 'Официант'),
+                        timeIn: timeIn,
+                        timeOut: timeOut,
+                        hours: hours,
+                        isCalculated: isCalculated,
+                        rate: rate,
+                        amount: amount,
+                        isRko: !!custom.isRko,
+                        isPaid: !!custom.isPaid,
+                        manualHours: custom.manualHours !== undefined ? custom.manualHours : ''
                     });
                 });
             });
 
-            document.getElementById('totalPayout').textContent = `${grandTotal.toLocaleString('ru-RU')} ₽`;
+            // Сортировка: сначала новые мероприятия
+            flatStaffList.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
         }
 
-        // Модальное окно подтверждения удаления кэша
-        function clearAllData() {
-            document.getElementById('confirmModal').classList.remove('hidden');
+        // Сбор уникальных дат для фильтрации
+        function buildDateFilter() {
+            const select = document.getElementById('date-filter');
+            // Очистка кроме первой опции
+            select.innerHTML = '<option value="all">Все даты</option>';
+
+            const dates = [...new Set(flatStaffList.map(item => item.eventDate))];
+            dates.sort((a, b) => new Date(b) - new Date(a));
+
+            dates.forEach(date => {
+                const item = flatStaffList.find(i => i.eventDate === date);
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = item ? item.displayDate : date;
+                select.appendChild(option);
+            });
         }
 
-        function closeModal() {
-            document.getElementById('confirmModal').classList.add('hidden');
+        // Переключение вкладок разделов
+        function switchTab(tabName) {
+            const tabs = ['catering', 'buffet', 'report'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const sec = document.getElementById(`section-${t}`);
+                
+                if (t === tabName) {
+                    btn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                    btn.classList.remove('text-slate-600', 'hover:text-slate-900');
+                    sec.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                    btn.classList.add('text-slate-600', 'hover:text-slate-900');
+                    sec.classList.add('hidden');
+                }
+            });
+            // Реинициализация иконок в случае перерисовок
+            lucide.createIcons();
         }
 
-        function executeClear() {
-            // Удаляем только пользовательские записи о ставках и чекбоксах
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.startsWith('shift_meta_')) {
-                    keysToRemove.push(key);
+        // Рендеринг карточек сотрудников (Кейтеринг)
+        function renderCatering(filteredList = flatStaffList) {
+            const container = document.getElementById('catering-container');
+            container.innerHTML = '';
+
+            if (filteredList.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-16 text-center bg-white rounded-xl border border-slate-200">
+                        <i data-lucide="folder-open" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+                        <p class="text-slate-500 font-medium">Смены не найдены</p>
+                        <p class="text-xs text-slate-400 mt-1">Попробуйте изменить поисковый запрос или фильтр по дате</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                updateStats(filteredList);
+                return;
+            }
+
+            filteredList.forEach(item => {
+                const card = document.createElement('div');
+                
+                // Классы оформления на основании статусов оплаты
+                let cardBorderClass = 'border-slate-200 hover:border-indigo-200';
+                let cardBgClass = 'bg-white';
+                
+                if (item.isPaid) {
+                    cardBorderClass = 'border-emerald-200';
+                    cardBgClass = 'bg-emerald-50/30';
+                } else if (item.isRko) {
+                    cardBorderClass = 'border-blue-200';
+                    cardBgClass = 'bg-blue-50/10';
+                }
+
+                card.className = `transition-all duration-200 rounded-xl border p-5 shadow-sm hover:shadow-md ${cardBgClass} ${cardBorderClass} flex flex-col justify-between`;
+                card.id = `card-${item.shiftId}`;
+
+                card.innerHTML = `
+                    <div class="space-y-4">
+                        <!-- Название мероприятия и Дата -->
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="inline-block text-[11px] font-semibold tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">
+                                    ${item.displayDate}
+                                </span>
+                                <h3 class="text-base font-bold text-slate-800 mt-1.5 leading-snug">${item.eventName}</h3>
+                                <p class="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                    ${item.eventFormat}
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-slate-400 font-medium block">Роль</span>
+                                <span class="text-sm font-semibold text-slate-700">${item.role}</span>
+                            </div>
+                        </div>
+
+                        <!-- ФИО сотрудника -->
+                        <div class="border-t border-b border-slate-100 py-3 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-900">${item.personName}</h4>
+                                <a href="tel:${item.phone}" class="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 mt-0.5">
+                                    <i data-lucide="phone" class="w-3 h-3"></i> ${item.phone}
+                                </a>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-slate-400">Сумма</span>
+                                <div id="amount-${item.shiftId}" class="text-xl font-extrabold text-indigo-600">
+                                    ${item.amount.toLocaleString('ru-RU')} ₽
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Рабочие часы -->
+                        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Приход</label>
+                                <input type="text" 
+                                       placeholder="--:--" 
+                                       value="${item.timeIn}" 
+                                       onchange="updateShiftField('${item.shiftId}', 'timeIn', this.value)"
+                                       class="w-full text-center py-1 border border-slate-200 rounded bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Уход</label>
+                                <input type="text" 
+                                       placeholder="--:--" 
+                                       value="${item.timeOut}" 
+                                       onchange="updateShiftField('${item.shiftId}', 'timeOut', this.value)"
+                                       class="w-full text-center py-1 border border-slate-200 rounded bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            
+                            <!-- Вывод отработанного времени -->
+                            <div class="col-span-2 pt-1 border-t border-slate-200/60 flex justify-between items-center">
+                                <span class="text-xs font-medium text-slate-500">Время работы:</span>
+                                <div class="flex items-center space-x-2">
+                                    ${item.isCalculated ? 
+                                        `<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-0.5">
+                                            <i data-lucide="check" class="w-3 h-3"></i> Авто: ${item.hours} ч
+                                         </span>` : 
+                                        `<div class="flex items-center space-x-1">
+                                            <input type="number" 
+                                                   step="0.5" 
+                                                   placeholder="0" 
+                                                   value="${item.manualHours}" 
+                                                   oninput="updateShiftField('${item.shiftId}', 'manualHours', this.value)"
+                                                   class="w-14 text-center py-0.5 border border-slate-200 rounded text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500">
+                                            <span class="text-xs text-slate-400 font-bold">ч</span>
+                                         </div>`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Финансовая часть: Ставка -->
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500">Ставка (в час):</span>
+                            <div class="relative w-32">
+                                <input type="number" 
+                                       step="10" 
+                                       placeholder="0" 
+                                       value="${item.rate || ''}" 
+                                       oninput="updateShiftField('${item.shiftId}', 'rate', this.value)"
+                                       class="w-full text-right pr-7 pl-2 py-1 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">₽</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Чекбоксы статусов -->
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                        <!-- РКО выписано -->
+                        <label class="flex items-center space-x-2 cursor-pointer select-none group">
+                            <div class="relative">
+                                <input type="checkbox" 
+                                       ${item.isRko ? 'checked' : ''} 
+                                       onchange="toggleCheckState('${item.shiftId}', 'isRko', this.checked)"
+                                       class="sr-only peer">
+                                <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">РКО</span>
+                        </label>
+
+                        <!-- Оплата совершена -->
+                        <label class="flex items-center space-x-2 cursor-pointer select-none group">
+                            <span class="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">Оплачено</span>
+                            <div class="relative">
+                                <input type="checkbox" 
+                                       ${item.isPaid ? 'checked' : ''} 
+                                       onchange="toggleCheckState('${item.shiftId}', 'isPaid', this.checked)"
+                                       class="sr-only peer">
+                                <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            updateStats(filteredList);
+        }
+
+        // Обновление ставки или времени
+        function updateShiftField(shiftId, fieldName, value) {
+            if (!userSettings[shiftId]) {
+                userSettings[shiftId] = {};
+            }
+            
+            userSettings[shiftId][fieldName] = value;
+            saveSettings();
+            
+            // Перерасчитываем
+            processData();
+            
+            // Находим обновленный элемент в списке
+            const updatedItem = flatStaffList.find(i => i.shiftId === shiftId);
+            if (updatedItem) {
+                // Прямое обновление суммы на карточке без полного перерендерирования
+                const amountEl = document.getElementById(`amount-${shiftId}`);
+                if (amountEl) {
+                    amountEl.textContent = `${updatedItem.amount.toLocaleString('ru-RU')} ₽`;
+                }
+
+                // В случае изменения времени - обновим карточку целиком для корректного отображения ручных/авто часов
+                if (fieldName === 'timeIn' || fieldName === 'timeOut' || fieldName === 'manualHours') {
+                    // Медленный рендер только измененных полей для сохранения фокуса ввода
+                    const searchVal = document.getElementById('search-input').value;
+                    const dateFilterVal = document.getElementById('date-filter').value;
+                    applyFilters(searchVal, dateFilterVal);
                 }
             }
-            keysToRemove.forEach(k => localStorage.removeItem(k));
-            
-            closeModal();
-            
-            // Если данные уже на экране, перерендерим их с чистыми полями
-            if (globalStaffDb && globalEventsDb) {
-                renderDashboard(globalStaffDb, globalEventsDb);
+        }
+
+        // Переключение чекбокса РКО / Оплачено
+        function toggleCheckState(shiftId, fieldName, checked) {
+            if (!userSettings[shiftId]) {
+                userSettings[shiftId] = {};
             }
+
+            userSettings[shiftId][fieldName] = checked;
+            saveSettings();
+            
+            // Перерасчет данных локально
+            processData();
+
+            // Изменяем стиль плашки динамически
+            const card = document.getElementById(`card-${shiftId}`);
+            if (card) {
+                const updatedItem = flatStaffList.find(i => i.shiftId === shiftId);
+                
+                // Сброс классов
+                card.className = "transition-all duration-200 rounded-xl border p-5 shadow-sm hover:shadow-md bg-white border-slate-200 hover:border-indigo-200 flex flex-col justify-between";
+                
+                if (updatedItem.isPaid) {
+                    card.classList.add('bg-emerald-50/30', 'border-emerald-200');
+                    card.classList.remove('bg-white', 'border-slate-200');
+                } else if (updatedItem.isRko) {
+                    card.classList.add('bg-blue-50/10', 'border-blue-200');
+                    card.classList.remove('bg-white', 'border-slate-200');
+                }
+            }
+        }
+
+        // Логика фильтрации и поиска
+        function filterStaff() {
+            const searchVal = document.getElementById('search-input').value;
+            const dateFilterVal = document.getElementById('date-filter').value;
+            applyFilters(searchVal, dateFilterVal);
+        }
+
+        function applyFilters(searchVal, dateFilterVal) {
+            const query = searchVal.toLowerCase().trim();
+            
+            const filtered = flatStaffList.filter(item => {
+                const matchesSearch = item.personName.toLowerCase().includes(query) || 
+                                      item.eventName.toLowerCase().includes(query) || 
+                                      item.role.toLowerCase().includes(query);
+                
+                const matchesDate = dateFilterVal === 'all' || item.eventDate === dateFilterVal;
+                
+                return matchesSearch && matchesDate;
+            });
+
+            renderCatering(filtered);
+        }
+
+        // Обновление виджетов сводной статистики
+        function updateStats(list = flatStaffList) {
+            const totalJobs = list.length;
+            let totalHours = 0;
+            let totalAmount = 0;
+
+            list.forEach(item => {
+                totalHours += item.hours;
+                totalAmount += item.amount;
+            });
+
+            document.getElementById('stat-total-jobs').textContent = totalJobs;
+            document.getElementById('stat-total-hours').textContent = `${parseFloat(totalHours.toFixed(1))} ч`;
+            document.getElementById('stat-total-amount').textContent = `${Math.round(totalAmount).toLocaleString('ru-RU')} ₽`;
         }
     </script>
 </body>
