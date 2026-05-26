@@ -1,430 +1,668 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Users, 
-  Search, 
-  Calendar, 
-  Clock, 
-  DollarSign, 
-  CheckCircle, 
-  XCircle, 
-  TrendingUp, 
-  Download, 
-  RefreshCw, 
-  Phone, 
-  ChevronDown, 
-  ChevronUp, 
-  Edit2, 
-  Check, 
-  AlertCircle,
-  HelpCircle,
-  PiggyBank
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Учет расходов персонала VN</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Manrope', sans-serif;
+    }
+    /* Стилизация скроллбара */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-// Исходные данные на случай сбоя сети или CORS-блокировок
-const DEFAULT_STAFF_DATABASE = [
-  { "name": "Авдонин", "phone": "+7 (920) 126-45-04" },
-  { "name": "Борисова", "phone": "+7 (910) 819-64-60" },
-  { "name": "Гайсина", "phone": "+7 (964) 136-18-00" },
-  { "name": "Капралов", "phone": "+7 (920) 118-81-28" },
-  { "name": "Козлова", "phone": "+7 (924) 402-56-99" },
-  { "name": "Коршунов", "phone": "+7 (920) 143-13-96" },
-  { "name": "Никулина", "phone": "+7 (920) 141-82-30" },
-  { "name": "Орехина", "phone": "+79012749063" },
-  { "name": "Пастухова", "phone": "+7 (915) 966-21-51" },
-  { "name": "Прохоров", "phone": "+7 (980) 704-60-58" },
-  { "name": "Салина", "phone": "+7 (903) 824-18-07" },
-  { "name": "Сухановская", "phone": "+79036468034" },
-  { "name": "Телов", "phone": "+7 (996) 926-51-72" }
-];
+  <!-- ШАПКА ПРИЛОЖЕНИЯ -->
+  <header class="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-md">
+            <i data-lucide="users" class="h-8 w-8 text-indigo-200"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">VN персонал & расходы</h1>
+            <p class="text-xs sm:text-sm text-indigo-200 mt-1">Система автоматического учета смен, рабочего времени и расчетов</p>
+          </div>
+        </div>
 
-const DEFAULT_EVENTS_DATA = [
-  {
-    "id": "1776088130144",
-    "name": "Диво",
-    "date": "2026-07-24",
-    "start": "",
-    "end": "",
-    "format": "Банкет",
-    "admin": "Михаил",
-    "guests": "50",
-    "extraInfo": "",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "1" },
-    "displayDate": "24 июль",
-    "staff": [
-      { "id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-      { "id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79012749063" },
-      { "id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79807046058" },
-      { "id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "79038241807" }
-    ],
-    "status": { "бар": true, "мой": true, "оф": true, "checked": false },
-    "location": "ул. Камышовая, 10"
-  },
-  {
-    "id": "1776111416416",
-    "name": "ПЯО",
-    "date": "2026-05-09",
-    "start": "08:00",
-    "end": "16:00",
-    "format": "Кофе-брейк",
-    "admin": "Илья",
-    "guests": "80",
-    "extraInfo": "",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "9 май",
-    "staff": [
-      { "id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79244025699" },
-      { "id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79969265172" }
-    ],
-    "location": "Советская пл., 3"
-  },
-  {
-    "id": "1776111545652",
-    "name": "Мэрия",
-    "date": "2026-05-30",
-    "start": "09:30",
-    "end": "10:00",
-    "format": "Кофе-брейк",
-    "admin": "Александр",
-    "guests": "150",
-    "extraInfo": "Обязательно 4 кофе-машины и 2 бойлера ",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "30 май",
-    "staff": [
-      { "id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-      { "id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-      { "id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-    ],
-    "location": "КЗЦ Милениум; фойе малого зала"
-  },
-  {
-    "id": "1776111678750",
-    "name": "Квартирник",
-    "date": "2026-05-29",
-    "start": "",
-    "end": "",
-    "format": "Банкет",
-    "neededStaff": { "оф": "2", "бар": "1", "мой": "0", "пов": "0" },
-    "displayDate": "29 май",
-    "staff": [
-      { "id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-      { "id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "rolesDisplay": "Бармен", "rolePaid": {}, "phone": "+79201431396" },
-      { "id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-    ],
-    "location": "Которосльная набережная, 53"
-  },
-  {
-    "id": "1776111860018",
-    "name": "Космопикник",
-    "date": "2026-06-16",
-    "neededStaff": { "оф": "8", "бар": "", "мой": "", "пов": "0" },
-    "displayDate": "16 июнь",
-    "staff": [
-      { "id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-      { "id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-      { "id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-    ]
-  },
-  {
-    "id": "1777537309462",
-    "name": "Прокуратура",
-    "date": "2026-05-07",
-    "start": "10:30",
-    "end": "20:00",
-    "format": "Несколько накрытий",
-    "location": "Прокуратура (ул. Некрасова, 5)",
-    "admin": "Михаил",
-    "guests": "18",
-    "neededStaff": { "оф": "3", "бар": "", "мой": "", "пов": "0" },
-    "displayDate": "7 май",
-    "staff": [
-      { "id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-    ]
-  },
-  {
-    "id": "1777537523148",
-    "name": "Диво (Роман)",
-    "date": "2026-08-09",
-    "start": "14:00",
-    "end": "23:00",
-    "format": "Фуршет",
-    "location": "ул. Камышовая, 10",
-    "admin": "Илья",
-    "guests": "55",
-    "neededStaff": { "оф": "4", "бар": "2", "мой": "", "пов": "1" },
-    "displayDate": "9 август",
-    "staff": [
-      { "id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"], "rolePaid": {} },
-      { "id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777884055273",
-    "name": "ПСМ",
-    "date": "2026-06-09",
-    "format": "Фуршет",
-    "location": "Которосльная набережная, 53",
-    "admin": "Александр",
-    "guests": "150",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "9 июнь",
-    "staff": [
-      { "id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777886866511",
-    "name": "Забег СБЕР",
-    "date": "2026-05-30",
-    "start": "08:30",
-    "end": "12:30",
-    "format": "Несколько накрытий",
-    "location": "Стрелка",
-    "admin": "Александр",
-    "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "30 май",
-    "staff": [
-      { "id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777889177428",
-    "name": "Школа 21 Сбер",
-    "date": "2026-05-20",
-    "start": "09:00",
-    "end": "12:00",
-    "format": "Кофе-брейк",
-    "location": "ул. Победы, 14а",
-    "admin": "Александр",
-    "guests": "28",
-    "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "20 май",
-    "staff": [
-      { "id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-    ]
-  },
-  {
-    "id": "1777889232148",
-    "name": "Белояр",
-    "date": "2026-05-22",
-    "start": "16:30",
-    "end": "18:00",
-    "format": "Фуршет",
-    "location": "Волжская набережная, 2",
-    "admin": "Михаил",
-    "guests": "40",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "22 май",
-    "staff": [
-      { "id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777889332128",
-    "name": "Забег ПСБ",
-    "date": "2026-05-23",
-    "start": "07:00",
-    "end": "15:00",
-    "format": "Фуршет",
-    "admin": "Михаил",
-    "guests": "30",
-    "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "23 май",
-    "staff": [
-      { "id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777890729728",
-    "name": "Сбер",
-    "date": "2026-05-19",
-    "start": "08:30",
-    "end": "15:30",
-    "format": "Кофе-брейк",
-    "location": "ул. Советская, 34",
-    "admin": "Михаил",
-    "guests": "130",
-    "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "19 май",
-    "staff": [
-      { "id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-    ]
-  },
-  {
-    "id": "1777890794176",
-    "name": "Сбер",
-    "date": "2026-05-20",
-    "start": "08:30",
-    "end": "15:30",
-    "format": "Кофе-брейк",
-    "location": "ул. Советская, 34",
-    "admin": "Михаил",
-    "guests": "130",
-    "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "20 май",
-    "staff": [
-      { "id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-      { "id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-    ]
-  },
-  {
-    "id": "1777890876158",
-    "name": "Сбер",
-    "date": "2026-05-21",
-    "start": "08:30",
-    "end": "15:30",
-    "format": "Кофе-брейк",
-    "location": "ул. Советская, 34",
-    "admin": "Илья",
-    "guests": "130",
-    "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "21 май",
-    "staff": [
-      { "id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1777890925842",
-    "name": "Сбер",
-    "date": "2026-05-22",
-    "start": "08:30",
-    "end": "11:30",
-    "format": "Кофе-брейк",
-    "location": "ул. Советская, 34",
-    "admin": "Илья",
-    "guests": "130",
-    "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "22 май",
-    "staff": [
-      { "id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1778215141510",
-    "name": "Школа 21 Сбер",
-    "date": "2026-05-21",
-    "start": "09:00",
-    "end": "12:00",
-    "format": "Кофе-брейк",
-    "location": "ул. Победы, 14",
-    "admin": "Александр",
-    "guests": "28",
-    "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "21 май",
-    "staff": [
-      { "id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-    ]
-  },
-  {
-    "id": "1778678455822",
-    "name": "Единая Россия",
-    "date": "2026-06-02",
-    "start": "12:30",
-    "end": "15:30",
-    "format": "Кофе-брейк",
-    "location": "Которосльная набережная, 53",
-    "admin": "Александр",
-    "guests": "300",
-    "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "26 июнь",
-    "staff": [
-      { "id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1778743503713",
-    "name": "Белояр",
-    "date": "2026-05-23",
-    "start": "10:30",
-    "end": "12:30",
-    "format": "Фуршет",
-    "admin": "Михаил",
-    "guests": "60",
-    "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "23 май",
-    "staff": [
-      { "id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  },
-  {
-    "id": "1779369787842",
-    "name": "В кругу семьи",
-    "date": "2026-06-07",
-    "guests": "200",
-    "neededStaff": { "оф": "5", "бар": "", "мой": "", "пов": "" },
-    "displayDate": "7 июнь",
-    "staff": [
-      { "id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-      { "id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-    ]
-  }
-];
+        <!-- Настройки ставки и времени по умолчанию -->
+        <div class="flex flex-wrap items-center gap-4 bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-md">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="dollar-sign" class="h-5 w-5 text-emerald-400"></i>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Ставка:</span>
+            <input
+              type="number"
+              id="hourly-rate-input"
+              value="300"
+              class="w-16 sm:w-20 px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-emerald-400 outline-none"
+              min="0"
+            />
+            <span class="text-sm text-slate-300">₽/час</span>
+          </div>
+          <div class="h-6 w-px bg-white/10 hidden sm:block"></div>
+          <div class="flex items-center space-x-2">
+            <i data-lucide="clock" class="h-5 w-5 text-indigo-300"></i>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">По умолч.:</span>
+            <input
+              type="number"
+              id="default-hours-input"
+              value="8"
+              class="w-12 px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-indigo-400 outline-none"
+              min="1"
+              max="24"
+            />
+            <span class="text-sm text-slate-300">ч</span>
+          </div>
+        </div>
+      </div>
 
-export default function App() {
-  const [staff, setStaff] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [dataSource, setDataSource] = useState('local'); // 'github' или 'local' или 'cached'
+      <!-- Статус источника данных -->
+      <div class="flex flex-wrap items-center justify-between mt-4 pt-4 border-t border-white/10 text-xs text-indigo-200 gap-2">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Источник: <strong id="data-source-badge" class="text-white">Загрузка...</strong></span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button 
+            id="reload-btn"
+            class="flex items-center gap-1 hover:text-white transition-colors bg-white/10 px-2.5 py-1 rounded-lg"
+          >
+            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+            Обновить данные
+          </button>
+          <button 
+            id="reset-btn"
+            class="flex items-center gap-1 text-rose-300 hover:text-rose-100 transition-colors bg-rose-950/20 px-2.5 py-1 rounded-lg border border-rose-500/10"
+          >
+            Сбросить правки
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
 
-  // Настройки оплаты труда
-  const [hourlyRate, setHourlyRate] = useState(300); // Рублей в час по умолчанию
-  const [defaultShiftHours, setDefaultShiftHours] = useState(8); // Часы смены по умолчанию, если не указано время
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex-grow w-full">
+    
+    <!-- КАРТОЧКИ СТАТИСТИКИ -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+          <i data-lucide="piggy-bank" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Всего начислено</p>
+          <p id="stat-total-cost" class="text-2xl font-black text-slate-800 mt-1">0 ₽</p>
+          <p id="stat-total-hours" class="text-xs text-slate-500 mt-0.5">0 раб. ч.</p>
+        </div>
+      </div>
 
-  // Фильтры и поиск
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedStaff, setExpandedStaff] = useState({});
-  const [filterPaidStatus, setFilterPaidStatus] = useState('all'); // 'all', 'has_unpaid', 'all_paid', 'no_shifts'
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl">
+          <i data-lucide="check-circle" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Выплачено</p>
+          <p id="stat-paid-amount" class="text-2xl font-black text-emerald-600 mt-1">0 ₽</p>
+          <p id="stat-paid-shifts-count" class="text-xs text-slate-500 mt-0.5">0 из 0 смен</p>
+        </div>
+      </div>
 
-  // Режим редактирования смены
-  // Формат: { eventId, staffId, roleIndex } -> true
-  const [editingShifts, setEditingShifts] = useState({});
-  const [tempShiftData, setTempShiftData] = useState({}); // Хранение временных правок времени
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-3.5 bg-amber-50 text-amber-600 rounded-2xl">
+          <i data-lucide="alert-circle" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Долг (К выплате)</p>
+          <p id="stat-unpaid-amount" class="text-2xl font-black text-amber-600 mt-1">0 ₽</p>
+          <p id="stat-unpaid-shifts-count" class="text-xs text-slate-500 mt-0.5">0 неопл. смен</p>
+        </div>
+      </div>
 
-  // Загрузка данных
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Процент выплат</span>
+          <span id="stat-paid-percent" class="text-sm font-bold text-indigo-600">0%</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3">
+          <div id="stat-paid-progress" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <p class="text-slate-400 text-[11px] mt-2">Баланс закрытых и оплаченных часов</p>
+      </div>
+    </div>
 
-  const loadInitialData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Пытаемся загрузить из localStorage сначала
+    <!-- ФИЛЬТРЫ И ПОИСК -->
+    <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6">
+      <div class="flex flex-col lg:flex-row gap-4 items-center justify-between">
+        <div class="relative w-full lg:max-w-md">
+          <i data-lucide="search" class="absolute left-4 top-3.5 h-5 w-5 text-slate-400"></i>
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Поиск сотрудника по фамилии или телефону..."
+            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+          />
+        </div>
+
+        <div class="flex flex-wrap gap-2 w-full lg:w-auto" id="filter-buttons-container">
+          <button data-filter="all" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">
+            Все сотрудники (<span id="count-all">0</span>)
+          </button>
+          <button data-filter="has_unpaid" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+            Есть долг (<span id="count-unpaid">0</span>)
+          </button>
+          <button data-filter="all_paid" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+            Полностью оплачены (<span id="count-paid">0</span>)
+          </button>
+          <button data-filter="no_shifts" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-500 hover:bg-slate-200">
+            Без смен (<span id="count-none">0</span>)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ИНДИКАТОР ЗАГРУЗКИ -->
+    <div id="loader" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-2"></div>
+      <p class="text-slate-500 text-sm">Получение и обработка базы смен...</p>
+    </div>
+
+    <!-- СПИСОК ПЕРСОНАЛА -->
+    <div id="staff-container" class="space-y-4 hidden">
+      <!-- Сюда JS будет рендерить плашки -->
+    </div>
+
+    <!-- ПОДСКАЗКА -->
+    <div class="mt-8 bg-blue-50 border border-blue-100 rounded-3xl p-5 text-blue-800 flex items-start gap-4">
+      <i data-lucide="help-circle" class="h-6 w-6 text-blue-600 shrink-0 mt-0.5"></i>
+      <div class="text-xs sm:text-sm space-y-1">
+        <h4 class="font-bold text-blue-900">Справка по управлению сменами</h4>
+        <p>Нажмите на любую плашку персонала, чтобы развернуть детальную информацию и посмотреть список его смен.</p>
+        <p>Вы можете на лету редактировать время начала/окончания смены сотрудника (кнопка <strong>"Время"</strong>), а также быстро переключать состояние оплаты простым нажатием на кнопку статуса <strong>"Оплачено / Не оплачено"</strong>.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ФУТЕР -->
+  <footer class="bg-slate-900 text-slate-400 py-10 mt-16 border-t border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-bold text-white">VN Personnel Management v1.2</p>
+          <p class="text-xs text-slate-500 mt-1">Данные синхронизированы с репозиторием шеф-базы</p>
+        </div>
+        <p class="text-xs text-slate-500">
+          © 2026. Разработано для автоматизации учета расходов кейтеринга и банкетных служб.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- СКРИПТ ПРИЛОЖЕНИЯ -->
+  <script>
+    // Исходные данные на случай сбоя сети или CORS
+    const DEFAULT_STAFF_DATABASE = [
+      { "name": "Авдонин", "phone": "+7 (920) 126-45-04" },
+      { "name": "Борисова", "phone": "+7 (910) 819-64-60" },
+      { "name": "Гайсина", "phone": "+7 (964) 136-18-00" },
+      { "name": "Капралов", "phone": "+7 (920) 118-81-28" },
+      { "name": "Козлова", "phone": "+7 (924) 402-56-99" },
+      { "name": "Коршунов", "phone": "+7 (920) 143-13-96" },
+      { "name": "Никулина", "phone": "+7 (920) 141-82-30" },
+      { "name": "Орехина", "phone": "+79012749063" },
+      { "name": "Пастухова", "phone": "+7 (915) 966-21-51" },
+      { "name": "Прохоров", "phone": "+7 (980) 704-60-58" },
+      { "name": "Салина", "phone": "+7 (903) 824-18-07" },
+      { "name": "Сухановская", "phone": "+79036468034" },
+      { "name": "Телов", "phone": "+7 (996) 926-51-72" }
+    ];
+
+    const DEFAULT_EVENTS_DATA = [
+      {
+        "id": "1776088130144",
+        "name": "Диво",
+        "date": "2026-07-24",
+        "start": "",
+        "end": "",
+        "format": "Банкет",
+        "admin": "Михаил",
+        "guests": "50",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "1" },
+        "displayDate": "24 июль",
+        "staff": [
+          { "id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+          { "id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79012749063" },
+          { "id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79807046058" },
+          { "id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "79038241807" }
+        ],
+        "location": "ул. Камышовая, 10"
+      },
+      {
+        "id": "1776111416416",
+        "name": "ПЯО",
+        "date": "2026-05-09",
+        "start": "08:00",
+        "end": "16:00",
+        "format": "Кофе-брейк",
+        "admin": "Илья",
+        "guests": "80",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "9 май",
+        "staff": [
+          { "id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79244025699" },
+          { "id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79969265172" }
+        ],
+        "location": "Советская пл., 3"
+      },
+      {
+        "id": "1776111545652",
+        "name": "Мэрия",
+        "date": "2026-05-30",
+        "start": "09:30",
+        "end": "10:00",
+        "format": "Кофе-брейк",
+        "admin": "Александр",
+        "guests": "150",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "30 май",
+        "staff": [
+          { "id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+          { "id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+          { "id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+        ],
+        "location": "КЗЦ Милениум; фойе малого зала"
+      },
+      {
+        "id": "1776111678750",
+        "name": "Квартирник",
+        "date": "2026-05-29",
+        "start": "",
+        "end": "",
+        "format": "Банкет",
+        "neededStaff": { "оф": "2", "бар": "1", "мой": "0", "пов": "0" },
+        "displayDate": "29 май",
+        "staff": [
+          { "id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+          { "id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "rolesDisplay": "Бармен", "rolePaid": {}, "phone": "+79201431396" },
+          { "id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+        ],
+        "location": "Которосльная набережная, 53"
+      },
+      {
+        "id": "1776111860018",
+        "name": "Космопикник",
+        "date": "2026-06-16",
+        "neededStaff": { "оф": "8", "бар": "", "мой": "", "пов": "0" },
+        "displayDate": "16 июнь",
+        "staff": [
+          { "id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+          { "id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+          { "id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+        ]
+      },
+      {
+        "id": "1777537309462",
+        "name": "Прокуратура",
+        "date": "2026-05-07",
+        "start": "10:30",
+        "end": "20:00",
+        "format": "Несколько накрытий",
+        "location": "Прокуратура (ул. Некрасова, 5)",
+        "admin": "Михаил",
+        "guests": "18",
+        "neededStaff": { "оф": "3", "бар": "", "мой": "", "пов": "0" },
+        "displayDate": "7 май",
+        "staff": [
+          { "id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+        ]
+      },
+      {
+        "id": "1777537523148",
+        "name": "Диво (Роман)",
+        "date": "2026-08-09",
+        "start": "14:00",
+        "end": "23:00",
+        "format": "Фуршет",
+        "location": "ул. Камышовая, 10",
+        "admin": "Илья",
+        "guests": "55",
+        "neededStaff": { "оф": "4", "бар": "2", "мой": "", "пов": "1" },
+        "displayDate": "9 август",
+        "staff": [
+          { "id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"], "rolePaid": {} },
+          { "id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777884055273",
+        "name": "ПСМ",
+        "date": "2026-06-09",
+        "format": "Фуршет",
+        "location": "Которосльная набережная, 53",
+        "admin": "Александр",
+        "guests": "150",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "9 июнь",
+        "staff": [
+          { "id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777886866511",
+        "name": "Забег СБЕР",
+        "date": "2026-05-30",
+        "start": "08:30",
+        "end": "12:30",
+        "format": "Несколько накрытий",
+        "location": "Стрелка",
+        "admin": "Александр",
+        "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "30 май",
+        "staff": [
+          { "id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777889177428",
+        "name": "Школа 21 Сбер",
+        "date": "2026-05-20",
+        "start": "09:00",
+        "end": "12:00",
+        "format": "Кофе-брейк",
+        "location": "ул. Победы, 14а",
+        "admin": "Александр",
+        "guests": "28",
+        "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "20 май",
+        "staff": [
+          { "id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+        ]
+      },
+      {
+        "id": "1777889232148",
+        "name": "Белояр",
+        "date": "2026-05-22",
+        "start": "16:30",
+        "end": "18:00",
+        "format": "Фуршет",
+        "location": "Волжская набережная, 2",
+        "admin": "Михаил",
+        "guests": "40",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "22 май",
+        "staff": [
+          { "id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777889332128",
+        "name": "Забег ПСБ",
+        "date": "2026-05-23",
+        "start": "07:00",
+        "end": "15:00",
+        "format": "Фуршет",
+        "admin": "Михаил",
+        "guests": "30",
+        "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "23 май",
+        "staff": [
+          { "id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777890729728",
+        "name": "Сбер",
+        "date": "2026-05-19",
+        "start": "08:30",
+        "end": "15:30",
+        "format": "Кофе-брейк",
+        "location": "ул. Советская, 34",
+        "admin": "Михаил",
+        "guests": "130",
+        "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "19 май",
+        "staff": [
+          { "id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+        ]
+      },
+      {
+        "id": "1777890794176",
+        "name": "Сбер",
+        "date": "2026-05-20",
+        "start": "08:30",
+        "end": "15:30",
+        "format": "Кофе-брейк",
+        "location": "ул. Советская, 34",
+        "admin": "Михаил",
+        "guests": "130",
+        "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "20 май",
+        "staff": [
+          { "id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+          { "id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+        ]
+      },
+      {
+        "id": "1777890876158",
+        "name": "Сбер",
+        "date": "2026-05-21",
+        "start": "08:30",
+        "end": "15:30",
+        "format": "Кофе-брейк",
+        "location": "ул. Советская, 34",
+        "admin": "Илья",
+        "guests": "130",
+        "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "21 май",
+        "staff": [
+          { "id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1777890925842",
+        "name": "Сбер",
+        "date": "2026-05-22",
+        "start": "08:30",
+        "end": "11:30",
+        "format": "Кофе-брейк",
+        "location": "ул. Советская, 34",
+        "admin": "Илья",
+        "guests": "130",
+        "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "22 май",
+        "staff": [
+          { "id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1778215141510",
+        "name": "Школа 21 Сбер",
+        "date": "2026-05-21",
+        "start": "09:00",
+        "end": "12:00",
+        "format": "Кофе-брейк",
+        "location": "ул. Победы, 14",
+        "admin": "Александр",
+        "guests": "28",
+        "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "21 май",
+        "staff": [
+          { "id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+        ]
+      },
+      {
+        "id": "1778678455822",
+        "name": "Единая Россия",
+        "date": "2026-06-02",
+        "start": "12:30",
+        "end": "15:30",
+        "format": "Кофе-брейк",
+        "location": "Которосльная набережная, 53",
+        "admin": "Александр",
+        "guests": "300",
+        "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "2 июнь",
+        "staff": [
+          { "id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1778743503713",
+        "name": "Белояр",
+        "date": "2026-05-23",
+        "start": "10:30",
+        "end": "12:30",
+        "format": "Фуршет",
+        "admin": "Михаил",
+        "guests": "60",
+        "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "23 май",
+        "staff": [
+          { "id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      },
+      {
+        "id": "1779369787842",
+        "name": "В кругу семьи",
+        "date": "2026-06-07",
+        "guests": "200",
+        "neededStaff": { "оф": "5", "бар": "", "мой": "", "пов": "" },
+        "displayDate": "7 июнь",
+        "staff": [
+          { "id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+          { "id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+        ]
+      }
+    ];
+
+    // Глобальные состояния приложения
+    let staff = [];
+    let events = [];
+    let hourlyRate = 300;
+    let defaultShiftHours = 8;
+    let searchTerm = '';
+    let filterPaidStatus = 'all'; // 'all', 'has_unpaid', 'all_paid', 'no_shifts'
+    let expandedStaff = {}; // { [staffName]: boolean }
+    let editingShifts = {}; // { [shiftUniqueId]: boolean }
+
+    // Инициализация при загрузке страницы
+    window.addEventListener('DOMContentLoaded', () => {
+      // Инициализируем иконки Lucide
+      lucide.createIcons();
+
+      // Навешиваем слушатели на шапку настроек
+      const hourlyRateInput = document.getElementById('hourly-rate-input');
+      const defaultHoursInput = document.getElementById('default-hours-input');
+      
+      const savedRate = localStorage.getItem('vn_hourly_rate');
+      if (savedRate) {
+        hourlyRate = Number(savedRate);
+        hourlyRateInput.value = hourlyRate;
+      }
+      
+      hourlyRateInput.addEventListener('input', (e) => {
+        hourlyRate = Math.max(0, Number(e.target.value));
+        localStorage.setItem('vn_hourly_rate', hourlyRate);
+        updateApp();
+      });
+
+      defaultHoursInput.addEventListener('input', (e) => {
+        defaultShiftHours = Math.max(1, Number(e.target.value));
+        updateApp();
+      });
+
+      // Поиск
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        renderStaffList();
+      });
+
+      // Фильтры
+      const filterButtons = document.querySelectorAll('.filter-btn');
+      filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Убираем активный класс у всех
+          filterButtons.forEach(b => {
+            b.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-100');
+            b.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+          });
+          // Ставим активный класс на нажатую кнопку
+          btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-100');
+          btn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+
+          filterPaidStatus = btn.getAttribute('data-filter');
+          renderStaffList();
+        });
+      });
+
+      // Кнопки перезагрузки и сброса
+      document.getElementById('reload-btn').addEventListener('click', loadInitialData);
+      document.getElementById('reset-btn').addEventListener('click', handleResetToDefault);
+
+      // Запуск загрузки
+      loadInitialData();
+    });
+
+    // Функция загрузки данных
+    async function loadInitialData() {
+      document.getElementById('loader').classList.remove('hidden');
+      document.getElementById('staff-container').classList.add('hidden');
+      
+      const badge = document.getElementById('data-source-badge');
+
       const cachedStaff = localStorage.getItem('vn_staff_db');
       const cachedEvents = localStorage.getItem('vn_events_data');
-      const savedRate = localStorage.getItem('vn_hourly_rate');
-      
-      if (savedRate) {
-        setHourlyRate(Number(savedRate));
-      }
 
-      // Пытаемся получить актуальные данные с GitHub
-      // Базовые ссылки на репозиторий vn
       const staffUrl = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json';
       const eventsUrl = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json';
 
@@ -432,6 +670,7 @@ export default function App() {
       let loadedEvents = null;
 
       try {
+        // Пробуем fetch с GitHub
         const staffRes = await fetch(staffUrl);
         if (staffRes.ok) loadedStaff = await staffRes.json();
 
@@ -439,817 +678,539 @@ export default function App() {
         if (eventsRes.ok) loadedEvents = await eventsRes.json();
 
         if (loadedStaff && loadedEvents) {
-          setDataSource('github');
+          badge.textContent = 'GitHub Репозиторий';
+          badge.className = "text-white bg-indigo-500/30 px-2 py-0.5 rounded";
         }
-      } catch (fetchErr) {
-        console.warn("Не удалось загрузить данные с GitHub. Используются локальные данные.", fetchErr);
+      } catch (err) {
+        console.warn("Ошибка получения внешних данных GitHub. Используем резервный кэш.", err);
       }
 
-      // Если с гитхаба загрузить не удалось, берем кэш или дефолты
+      // Фолбэк на кэш или встроенные данные
       if (!loadedStaff || !loadedEvents) {
         if (cachedStaff && cachedEvents) {
           loadedStaff = JSON.parse(cachedStaff);
           loadedEvents = JSON.parse(cachedEvents);
-          setDataSource('cached');
+          badge.textContent = 'Кэш браузера';
+          badge.className = "text-white bg-amber-500/30 px-2 py-0.5 rounded";
         } else {
           loadedStaff = DEFAULT_STAFF_DATABASE;
           loadedEvents = DEFAULT_EVENTS_DATA;
-          setDataSource('local');
+          badge.textContent = 'Встроенная база (Резерв)';
+          badge.className = "text-white bg-slate-500/30 px-2 py-0.5 rounded";
         }
       }
 
-      // Проверим, сохранены ли уже пользовательские правки смен в локальном хранилище
-      const savedModifiedEvents = localStorage.getItem('vn_modified_events_data');
-      if (savedModifiedEvents) {
-        setEvents(JSON.parse(savedModifiedEvents));
-      } else {
-        setEvents(loadedEvents);
-      }
-
-      setStaff(loadedStaff);
-
-      // Сохраняем базовые версии
+      // Сохраняем первичные базы в кэш
       localStorage.setItem('vn_staff_db', JSON.stringify(loadedStaff));
       localStorage.setItem('vn_events_data', JSON.stringify(loadedEvents));
 
-    } catch (err) {
-      setError("Ошибка при обработке данных: " + err.message);
-      setStaff(DEFAULT_STAFF_DATABASE);
-      setEvents(DEFAULT_EVENTS_DATA);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Сброс всех изменений к исходным
-  const handleResetToDefault = () => {
-    if (window.confirm("Вы уверены, что хотите сбросить все внесенные изменения времени и статусов оплат?")) {
-      localStorage.removeItem('vn_modified_events_data');
-      const originalEvents = localStorage.getItem('vn_events_data');
-      if (originalEvents) {
-        setEvents(JSON.parse(originalEvents));
+      // Проверяем, есть ли пользовательские измененные данные в localStorage
+      const savedModifiedEvents = localStorage.getItem('vn_modified_events_data');
+      if (savedModifiedEvents) {
+        events = JSON.parse(savedModifiedEvents);
       } else {
-        setEvents(DEFAULT_EVENTS_DATA);
+        events = loadedEvents;
       }
-    }
-  };
 
-  // Сохранение часовой ставки
-  const handleRateChange = (val) => {
-    const rate = Math.max(0, Number(val));
-    setHourlyRate(rate);
-    localStorage.setItem('vn_hourly_rate', rate);
-  };
-
-  // Помощник для расчета длительности смены
-  const calculateShiftHours = (start, end) => {
-    if (!start || !end) return defaultShiftHours;
-    
-    const [startH, startM] = start.split(':').map(Number);
-    const [endH, endM] = end.split(':').map(Number);
-    
-    if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
-      return defaultShiftHours;
-    }
-
-    let startMinutes = startH * 60 + startM;
-    let endMinutes = endH * 60 + endM;
-
-    // Если смена заканчивается на следующий день (например, с 20:00 до 03:00)
-    if (endMinutes < startMinutes) {
-      endMinutes += 24 * 60;
-    }
-
-    const diffMinutes = endMinutes - startMinutes;
-    return Math.round((diffMinutes / 60) * 100) / 100;
-  };
-
-  // Помощник форматирования суммы денег
-  const formatMoney = (amount) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount);
-  };
-
-  // Получить все смены конкретного сотрудника по имени
-  const getStaffShifts = (staffName) => {
-    const staffShifts = [];
-    
-    events.forEach(event => {
-      if (!event.staff || !Array.isArray(event.staff)) return;
+      staff = loadedStaff;
       
-      event.staff.forEach(member => {
-        // Сверяем по имени (в базе и в ивентах могут слегка отличаться регистры, уберем пробелы)
-        if (member.name.trim().toLowerCase() === staffName.trim().toLowerCase()) {
-          const roles = member.roles || (member.rolesDisplay ? [member.rolesDisplay] : ['Официант']);
-          
-          roles.forEach((role, rIdx) => {
-            const isPaid = member.rolePaid && member.rolePaid[role] === true;
-            const startTime = member.time || event.start || '';
-            const endTime = member.end || event.end || '';
-            const hours = calculateShiftHours(startTime, endTime);
-            const cost = hours * hourlyRate;
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('staff-container').classList.remove('hidden');
 
-            staffShifts.push({
-              eventId: event.id,
-              eventName: event.name,
-              eventDate: event.date,
-              displayDate: event.displayDate || event.date,
-              format: event.format || 'Мероприятие',
-              location: event.location || '',
-              staffMemberId: member.id,
-              role,
-              roleIndex: rIdx,
-              startTime,
-              endTime,
-              hours,
-              cost,
-              isPaid
-            });
-          });
+      updateApp();
+    }
+
+    // Сбросить все правки к изначальным данным с GitHub/Дефолтным
+    function handleResetToDefault() {
+      if (confirm("Вы уверены, что хотите сбросить все внесенные изменения времени и статусов оплат?")) {
+        localStorage.removeItem('vn_modified_events_data');
+        const originalEvents = localStorage.getItem('vn_events_data');
+        if (originalEvents) {
+          events = JSON.parse(originalEvents);
+        } else {
+          events = DEFAULT_EVENTS_DATA;
         }
-      });
-    });
-
-    // Сортируем смены по дате (от новых к старым)
-    return staffShifts.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
-  };
-
-  // Переключение статуса оплаты смены
-  const toggleShiftPaid = (eventId, staffId, role) => {
-    const updatedEvents = events.map(event => {
-      if (event.id !== eventId) return event;
-      
-      const updatedStaff = event.staff.map(member => {
-        if (member.id !== staffId) return member;
-        
-        const currentPaid = member.rolePaid || {};
-        const newPaidStatus = !currentPaid[role];
-        
-        return {
-          ...member,
-          rolePaid: {
-            ...currentPaid,
-            [role]: newPaidStatus
-          }
-        };
-      });
-
-      return { ...event, staff: updatedStaff };
-    });
-
-    setEvents(updatedEvents);
-    localStorage.setItem('vn_modified_events_data', JSON.stringify(updatedEvents));
-  };
-
-  // Вход в режим редактирования смены
-  const startEditingShift = (eventId, staffId, roleIndex, currentStart, currentEnd) => {
-    const key = `${eventId}_${staffId}_${roleIndex}`;
-    setEditingShifts(prev => ({ ...prev, [key]: true }));
-    setTempShiftData(prev => ({
-      ...prev,
-      [key]: { start: currentStart || '', end: currentEnd || '' }
-    }));
-  };
-
-  // Сохранение отредактированного времени смены
-  const saveShiftTime = (eventId, staffId, roleIndex, role) => {
-    const key = `${eventId}_${staffId}_${roleIndex}`;
-    const editedTime = tempShiftData[key];
-    if (!editedTime) return;
-
-    const updatedEvents = events.map(event => {
-      if (event.id !== eventId) return event;
-
-      const updatedStaff = event.staff.map(member => {
-        if (member.id !== staffId) return member;
-
-        // Обновляем время начала и окончания у сотрудника
-        return {
-          ...member,
-          time: editedTime.start,
-          end: editedTime.end
-        };
-      });
-
-      return { ...event, staff: updatedStaff };
-    });
-
-    setEvents(updatedEvents);
-    localStorage.setItem('vn_modified_events_data', JSON.stringify(updatedEvents));
-
-    // Выходим из режима редактирования
-    setEditingShifts(prev => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-  };
-
-  // Отмена редактирования
-  const cancelEditingShift = (eventId, staffId, roleIndex) => {
-    const key = `${eventId}_${staffId}_${roleIndex}`;
-    setEditingShifts(prev => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-  };
-
-  // Изменение временных полей ввода времени
-  const handleTempTimeChange = (eventId, staffId, roleIndex, field, value) => {
-    const key = `${eventId}_${staffId}_${roleIndex}`;
-    setTempShiftData(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        [field]: value
+        updateApp();
       }
-    }));
-  };
+    }
 
-  // Рассчитываем полную аналитику по персоналу
-  const staffAnalyticList = useMemo(() => {
-    return staff.map(person => {
-      const shifts = getStaffShifts(person.name);
-      const totalHours = shifts.reduce((acc, s) => acc + s.hours, 0);
-      const totalCost = shifts.reduce((acc, s) => acc + s.cost, 0);
+    // Вспомогательный расчет длительности смены
+    function calculateShiftHours(start, end) {
+      if (!start || !end) return defaultShiftHours;
       
-      const paidShifts = shifts.filter(s => s.isPaid);
-      const unpaidShifts = shifts.filter(s => !s.isPaid);
+      const startParts = start.split(':').map(Number);
+      const endParts = end.split(':').map(Number);
       
-      const paidAmount = paidShifts.reduce((acc, s) => acc + s.cost, 0);
-      const unpaidAmount = unpaidShifts.reduce((acc, s) => acc + s.cost, 0);
+      if (startParts.length < 2 || endParts.length < 2 || 
+          isNaN(startParts[0]) || isNaN(startParts[1]) || 
+          isNaN(endParts[0]) || isNaN(endParts[1])) {
+        return defaultShiftHours;
+      }
 
-      return {
-        ...person,
-        shifts,
-        totalShiftsCount: shifts.length,
-        paidShiftsCount: paidShifts.length,
-        unpaidShiftsCount: unpaidShifts.length,
-        totalHours,
-        totalCost,
-        paidAmount,
-        unpaidAmount,
-        hasUnpaid: unpaidShifts.length > 0
-      };
-    });
-  }, [staff, events, hourlyRate, defaultShiftHours]);
+      let startMinutes = startParts[0] * 60 + startParts[1];
+      let endMinutes = endParts[0] * 60 + endParts[1];
 
-  // Фильтрация и поиск сотрудников
-  const filteredStaffList = useMemo(() => {
-    return staffAnalyticList.filter(person => {
-      // Фильтр поиска
-      const matchesSearch = person.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (person.phone && person.phone.includes(searchTerm));
+      // Переход через полночь
+      if (endMinutes < startMinutes) {
+        endMinutes += 24 * 60;
+      }
+
+      const diff = endMinutes - startMinutes;
+      return Math.round((diff / 60) * 100) / 100;
+    }
+
+    // Валютное форматирование
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount);
+    }
+
+    // Получить все смены сотрудника по его имени
+    function getStaffShifts(staffName) {
+      const result = [];
+      events.forEach(event => {
+        if (!event.staff || !Array.isArray(event.staff)) return;
+
+        event.staff.forEach(member => {
+          if (member.name.trim().toLowerCase() === staffName.trim().toLowerCase()) {
+            const roles = member.roles || (member.rolesDisplay ? [member.rolesDisplay] : ['Официант']);
+            
+            roles.forEach((role, rIdx) => {
+              const isPaid = member.rolePaid && member.rolePaid[role] === true;
+              const startTime = member.time || event.start || '';
+              const endTime = member.end || event.end || '';
+              const hours = calculateShiftHours(startTime, endTime);
+              const cost = hours * hourlyRate;
+
+              result.push({
+                eventId: event.id,
+                eventName: event.name,
+                eventDate: event.date,
+                displayDate: event.displayDate || event.date,
+                format: event.format || 'Мероприятие',
+                staffMemberId: member.id,
+                role,
+                roleIndex: rIdx,
+                startTime,
+                endTime,
+                hours,
+                cost,
+                isPaid
+              });
+            });
+          }
+        });
+      });
+      // Сортировка по дате от новых к старым
+      return result.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
+    }
+
+    // Расчет полной аналитики для каждого сотрудника
+    function getAnalyticList() {
+      return staff.map(person => {
+        const shifts = getStaffShifts(person.name);
+        const totalHours = shifts.reduce((acc, s) => acc + s.hours, 0);
+        const totalCost = shifts.reduce((acc, s) => acc + s.cost, 0);
+        
+        const paidShifts = shifts.filter(s => s.isPaid);
+        const unpaidShifts = shifts.filter(s => !s.isPaid);
+        
+        const paidAmount = paidShifts.reduce((acc, s) => acc + s.cost, 0);
+        const unpaidAmount = unpaidShifts.reduce((acc, s) => acc + s.cost, 0);
+
+        return {
+          ...person,
+          shifts,
+          totalShiftsCount: shifts.length,
+          paidShiftsCount: paidShifts.length,
+          unpaidShiftsCount: unpaidShifts.length,
+          totalHours,
+          totalCost,
+          paidAmount,
+          unpaidAmount,
+          hasUnpaid: unpaidShifts.length > 0
+        };
+      });
+    }
+
+    // Обновление всей логики и интерфейса приложения
+    function updateApp() {
+      const list = getAnalyticList();
       
-      if (!matchesSearch) return false;
+      // Считаем общую статистику для карточек
+      let totalAllShifts = 0;
+      let totalAllPaidShifts = 0;
+      let totalAllCost = 0;
+      let totalAllPaidAmount = 0;
+      let totalAllUnpaidAmount = 0;
+      let totalAllHours = 0;
 
-      // Фильтр статуса оплат
-      if (filterPaidStatus === 'all') return true;
-      if (filterPaidStatus === 'has_unpaid') return person.hasUnpaid;
-      if (filterPaidStatus === 'all_paid') return !person.hasUnpaid && person.totalShiftsCount > 0;
-      if (filterPaidStatus === 'no_shifts') return person.totalShiftsCount === 0;
+      list.forEach(p => {
+        totalAllShifts += p.totalShiftsCount;
+        totalAllPaidShifts += p.paidShiftsCount;
+        totalAllCost += p.totalCost;
+        totalAllPaidAmount += p.paidAmount;
+        totalAllUnpaidAmount += p.unpaidAmount;
+        totalAllHours += p.totalHours;
+      });
 
-      return true;
-    });
-  }, [staffAnalyticList, searchTerm, filterPaidStatus]);
+      const paidPercentage = totalAllShifts > 0 ? Math.round((totalAllPaidShifts / totalAllShifts) * 100) : 100;
 
-  // Глобальная статистика
-  const globalStats = useMemo(() => {
-    let totalAllShifts = 0;
-    let totalAllPaidShifts = 0;
-    let totalAllUnpaidShifts = 0;
-    let totalAllCost = 0;
-    let totalAllPaidAmount = 0;
-    let totalAllUnpaidAmount = 0;
-    let totalAllHours = 0;
+      // Обновляем визуальные карточки статистики
+      document.getElementById('stat-total-cost').textContent = formatMoney(totalAllCost);
+      document.getElementById('stat-total-hours').textContent = `${totalAllHours} раб. ч.`;
+      
+      document.getElementById('stat-paid-amount').textContent = formatMoney(totalAllPaidAmount);
+      document.getElementById('stat-paid-shifts-count').textContent = `${totalAllPaidShifts} из ${totalAllShifts} смен`;
+      
+      document.getElementById('stat-unpaid-amount').textContent = formatMoney(totalAllUnpaidAmount);
+      document.getElementById('stat-unpaid-shifts-count').textContent = `${totalAllShifts - totalAllPaidShifts} неопл. смен`;
+      
+      document.getElementById('stat-paid-percent').textContent = `${paidPercentage}%`;
+      document.getElementById('stat-paid-progress').style.width = `${paidPercentage}%`;
 
-    staffAnalyticList.forEach(p => {
-      totalAllShifts += p.totalShiftsCount;
-      totalAllPaidShifts += p.paidShiftsCount;
-      totalAllUnpaidShifts += p.unpaidShiftsCount;
-      totalAllCost += p.totalCost;
-      totalAllPaidAmount += p.paidAmount;
-      totalAllUnpaidAmount += p.unpaidAmount;
-      totalAllHours += p.totalHours;
-    });
+      // Счетчики для кнопок фильтров
+      document.getElementById('count-all').textContent = list.length;
+      document.getElementById('count-unpaid').textContent = list.filter(p => p.hasUnpaid).length;
+      document.getElementById('count-paid').textContent = list.filter(p => !p.hasUnpaid && p.totalShiftsCount > 0).length;
+      document.getElementById('count-none').textContent = list.filter(p => p.totalShiftsCount === 0).length;
 
-    return {
-      totalAllShifts,
-      totalAllPaidShifts,
-      totalAllUnpaidShifts,
-      totalAllCost,
-      totalAllPaidAmount,
-      totalAllUnpaidAmount,
-      totalAllHours,
-      paidPercentage: totalAllShifts > 0 ? Math.round((totalAllPaidShifts / totalAllShifts) * 100) : 100
-    };
-  }, [staffAnalyticList]);
+      // Отрендерим обновленный список
+      renderStaffList();
+    }
 
-  // Переключение развертывания плашки
-  const toggleExpand = (personName) => {
-    setExpandedStaff(prev => ({
-      ...prev,
-      [personName]: !prev[personName]
-    }));
-  };
+    // Рендер списка плашек персонала
+    function renderStaffList() {
+      const container = document.getElementById('staff-container');
+      container.innerHTML = '';
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* Шапка приложения */}
-      <header className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
-                <Users className="h-8 w-8 text-indigo-200" />
+      const fullList = getAnalyticList();
+
+      // Фильтруем данные
+      const filtered = fullList.filter(person => {
+        // Поиск
+        const matchesSearch = person.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              (person.phone && person.phone.includes(searchTerm));
+        if (!matchesSearch) return false;
+
+        // Фильтр статуса
+        if (filterPaidStatus === 'all') return true;
+        if (filterPaidStatus === 'has_unpaid') return person.hasUnpaid;
+        if (filterPaidStatus === 'all_paid') return !person.hasUnpaid && person.totalShiftsCount > 0;
+        if (filterPaidStatus === 'no_shifts') return person.totalShiftsCount === 0;
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm">
+            <i data-lucide="users" class="h-12 w-12 text-slate-300 mx-auto mb-3"></i>
+            <p class="text-slate-500 font-medium">Сотрудники с выбранными фильтрами не найдены</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      // Генерация HTML плашек
+      filtered.forEach(person => {
+        const isExpanded = !!expandedStaff[person.name];
+        const hasUnpaid = person.hasUnpaid;
+        
+        let statusBadge = '';
+        let initialBg = 'bg-slate-100 text-slate-400';
+        
+        if (person.totalShiftsCount > 0) {
+          if (hasUnpaid) {
+            statusBadge = `
+              <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                Есть долг
+              </span>
+            `;
+            initialBg = 'bg-amber-50 text-amber-700 border border-amber-200';
+          } else {
+            statusBadge = `
+              <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Рассчитан
+              </span>
+            `;
+            initialBg = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+          }
+        }
+
+        const personEl = document.createElement('div');
+        personEl.className = `bg-white rounded-3xl shadow-sm border transition-all duration-200 overflow-hidden ${
+          isExpanded ? 'border-indigo-200 ring-2 ring-indigo-500/5 shadow-md' : 'border-slate-100 hover:border-slate-200'
+        }`;
+
+        // Шапка плашки сотрудника
+        personEl.innerHTML = `
+          <div class="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none hover:bg-slate-50/50 transition-colors" onclick="toggleExpand('${person.name}')">
+            <div class="flex items-start space-x-4">
+              <div class="p-3 rounded-2xl font-bold text-lg hidden sm:flex items-center justify-center w-12 h-12 ${initialBg}">
+                ${person.name.substring(0, 2)}
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                  VN персонал & расходы
-                </h1>
-                <p className="text-xs sm:text-sm text-indigo-200 mt-1">
-                  Система автоматического учета смен, рабочего времени и расчетов
-                </p>
-              </div>
-            </div>
-
-            {/* Быстрые настройки ставки */}
-            <div className="flex flex-wrap items-center gap-4 bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-md">
-              <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-emerald-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">Ставка:</span>
-                <input
-                  type="number"
-                  value={hourlyRate}
-                  onChange={(e) => handleRateChange(e.target.value)}
-                  className="w-16 sm:w-20 px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-emerald-400 outline-none"
-                  min="0"
-                />
-                <span className="text-sm text-slate-300">₽/час</span>
-              </div>
-              <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-5 w-5 text-indigo-300" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">Смена по умолч.:</span>
-                <input
-                  type="number"
-                  value={defaultShiftHours}
-                  onChange={(e) => setDefaultShiftHours(Math.max(1, Number(e.target.value)))}
-                  className="w-12 px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-indigo-400 outline-none"
-                  min="1"
-                  max="24"
-                />
-                <span className="text-sm text-slate-300">ч</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Индикатор источника данных */}
-          <div className="flex flex-wrap items-center justify-between mt-4 pt-4 border-t border-white/10 text-xs text-indigo-200 gap-2">
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>
-                Источник данных:{' '}
-                <strong className="text-white">
-                  {dataSource === 'github' && 'GitHub Репозиторий (vn.git)'}
-                  {dataSource === 'cached' && 'Локальный кэш браузера'}
-                  {dataSource === 'local' && 'Встроенная база данных (Резерв)'}
-                </strong>
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={loadInitialData}
-                className="flex items-center gap-1 hover:text-white transition-colors bg-white/10 px-2.5 py-1 rounded-lg"
-              >
-                <RefreshCw className="h-3 w-3" />
-                Обновить данные
-              </button>
-              <button 
-                onClick={handleResetToDefault}
-                className="flex items-center gap-1 text-rose-300 hover:text-rose-100 transition-colors bg-rose-950/20 px-2.5 py-1 rounded-lg border border-rose-500/10"
-              >
-                Сбросить правки
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Блок глобальной сводки */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
-            <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl">
-              <PiggyBank className="h-7 w-7" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Всего начислено</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">{formatMoney(globalStats.totalAllCost)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{globalStats.totalAllHours} раб. ч.</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
-            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl">
-              <CheckCircle className="h-7 w-7" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Выплачено</p>
-              <p className="text-2xl font-black text-emerald-600 mt-1">{formatMoney(globalStats.totalAllPaidAmount)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{globalStats.totalAllPaidShifts} из {globalStats.totalAllShifts} смен</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center space-x-4">
-            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-2xl">
-              <AlertCircle className="h-7 w-7 animate-pulse" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Долг (К выплате)</p>
-              <p className="text-2xl font-black text-amber-600 mt-1">{formatMoney(globalStats.totalAllUnpaidAmount)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{globalStats.totalAllUnpaidShifts} неоплаченных смен</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Процент выплат</span>
-              <span className="text-sm font-bold text-indigo-600">{globalStats.paidPercentage}%</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-3">
-              <div 
-                className="bg-indigo-600 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${globalStats.paidPercentage}%` }}
-              ></div>
-            </div>
-            <p className="text-slate-400 text-[11px] mt-2">
-              Баланс оплаченного времени персонала
-            </p>
-          </div>
-        </div>
-
-        {/* Управление списками, поиск и фильтры */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            {/* Поисковая строка */}
-            <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Поиск сотрудника по фамилии или телефону..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              />
-            </div>
-
-            {/* Быстрые фильтры по оплатам */}
-            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-              <button
-                onClick={() => setFilterPaidStatus('all')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
-                  filterPaidStatus === 'all' 
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Все сотрудники ({staffAnalyticList.length})
-              </button>
-
-              <button
-                onClick={() => setFilterPaidStatus('has_unpaid')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 ${
-                  filterPaidStatus === 'has_unpaid' 
-                    ? 'bg-amber-600 text-white shadow-md shadow-amber-100' 
-                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/50'
-                }`}
-              >
-                Есть долг ({staffAnalyticList.filter(p => p.hasUnpaid).length})
-              </button>
-
-              <button
-                onClick={() => setFilterPaidStatus('all_paid')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 ${
-                  filterPaidStatus === 'all_paid' 
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100' 
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/50'
-                }`}
-              >
-                Полностью оплачены ({staffAnalyticList.filter(p => !p.hasUnpaid && p.totalShiftsCount > 0).length})
-              </button>
-
-              <button
-                onClick={() => setFilterPaidStatus('no_shifts')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
-                  filterPaidStatus === 'no_shifts' 
-                    ? 'bg-slate-600 text-white shadow-md' 
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}
-              >
-                Без смен ({staffAnalyticList.filter(p => p.totalShiftsCount === 0).length})
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Списочный блок персонала в виде интерактивных плашек */}
-        <div className="space-y-4">
-          {filteredStaffList.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm">
-              <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 font-medium">Сотрудники с выбранными фильтрами не найдены</p>
-              <button 
-                onClick={() => { setSearchTerm(''); setFilterPaidStatus('all'); }}
-                className="mt-3 text-sm text-indigo-600 hover:underline font-bold"
-              >
-                Сбросить все фильтры поиска
-              </button>
-            </div>
-          ) : (
-            filteredStaffList.map(person => {
-              const isExpanded = !!expandedStaff[person.name];
-              return (
-                <div 
-                  key={person.name} 
-                  className={`bg-white rounded-3xl shadow-sm border transition-all duration-200 overflow-hidden ${
-                    isExpanded ? 'border-indigo-200 ring-2 ring-indigo-500/5 shadow-md' : 'border-slate-100 hover:border-slate-200'
-                  }`}
-                >
-                  {/* Заголовок плашки сотрудника */}
-                  <div 
-                    onClick={() => toggleExpand(person.name)}
-                    className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none hover:bg-slate-50/50 transition-colors"
-                  >
-                    {/* Левая часть: имя, телефон, количество смен */}
-                    <div className="flex items-start space-x-4">
-                      <div className={`p-3 rounded-2xl font-bold text-lg hidden sm:flex items-center justify-center w-12 h-12 ${
-                        person.totalShiftsCount === 0 
-                          ? 'bg-slate-100 text-slate-400' 
-                          : person.hasUnpaid 
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}>
-                        {person.name.substring(0, 2)}
-                      </div>
-                      
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-bold text-slate-800">{person.name}</h3>
-                          {person.hasUnpaid && (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
-                              Есть долг
-                            </span>
-                          )}
-                          {person.totalShiftsCount > 0 && !person.hasUnpaid && (
-                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              Рассчитан
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center text-xs text-slate-500 gap-x-4 gap-y-1 mt-1">
-                          {person.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3.5 w-3.5 text-slate-400" />
-                              {person.phone}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            Смен: <strong className="text-slate-700">{person.totalShiftsCount}</strong> (Оплачено: {person.paidShiftsCount})
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Правая часть: Финансы, Кнопка развертывания */}
-                    <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0">
-                      <div className="flex gap-4 sm:gap-6 text-right">
-                        {/* Отработано часов */}
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Часы</span>
-                          <p className="text-sm font-bold text-slate-700">{person.totalHours} ч</p>
-                        </div>
-
-                        {/* Начислено всего */}
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Начислено</span>
-                          <p className="text-sm font-bold text-slate-700">{formatMoney(person.totalCost)}</p>
-                        </div>
-
-                        {/* Долг */}
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider">Долг</span>
-                          <p className={`text-sm font-black ${person.unpaidAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                            {formatMoney(person.unpaidAmount)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-100 p-1.5 rounded-xl text-slate-500">
-                        {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Разворачивающийся блок со списком смен сотрудника */}
-                  {isExpanded && (
-                    <div className="bg-slate-50/70 border-t border-slate-100 p-5 sm:p-6">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
-                        <Clock className="h-4 w-4 text-indigo-500" />
-                        История смен и расчетов сотрудника
-                      </h4>
-
-                      {person.shifts.length === 0 ? (
-                        <div className="text-center py-6 text-slate-400 text-sm">
-                          У данного сотрудника пока нет назначенных смен в базе данных мероприятий.
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="border-b border-slate-200 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
-                                <th className="pb-2.5 font-semibold">Мероприятие</th>
-                                <th className="pb-2.5 font-semibold">Дата</th>
-                                <th className="pb-2.5 font-semibold">Роль</th>
-                                <th className="pb-2.5 font-semibold text-center">Начало / Конец</th>
-                                <th className="pb-2.5 font-semibold text-right">Часы</th>
-                                <th className="pb-2.5 font-semibold text-right">Сумма</th>
-                                <th className="pb-2.5 font-semibold text-center">Статус</th>
-                                <th className="pb-2.5 font-semibold text-right">Действия</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm">
-                              {person.shifts.map((shift) => {
-                                const shiftKey = `${shift.eventId}_${shift.staffMemberId}_${shift.roleIndex}`;
-                                const isEditing = !!editingShifts[shiftKey];
-                                const tempTime = tempShiftData[shiftKey] || { start: '', end: '' };
-
-                                return (
-                                  <tr key={shiftKey} className="hover:bg-slate-100/40 transition-colors">
-                                    {/* Мероприятие */}
-                                    <td className="py-3.5 pr-2">
-                                      <div className="font-bold text-slate-800">{shift.eventName}</div>
-                                      <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{shift.format}</div>
-                                    </td>
-
-                                    {/* Дата */}
-                                    <td className="py-3.5 whitespace-nowrap pr-2">
-                                      <span className="text-slate-600 font-medium">{shift.displayDate}</span>
-                                    </td>
-
-                                    {/* Роль */}
-                                    <td className="py-3.5 pr-2">
-                                      <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-bold">
-                                        {shift.role}
-                                      </span>
-                                    </td>
-
-                                    {/* Начало / Конец */}
-                                    <td className="py-3.5 text-center px-2">
-                                      {isEditing ? (
-                                        <div className="flex items-center justify-center space-x-1">
-                                          <input
-                                            type="text"
-                                            placeholder="ЧЧ:ММ"
-                                            value={tempTime.start}
-                                            onChange={(e) => handleTempTimeChange(shift.eventId, shift.staffMemberId, shift.roleIndex, 'start', e.target.value)}
-                                            className="w-16 px-1.5 py-0.5 text-center border rounded-md text-xs font-bold bg-white text-slate-800 focus:border-indigo-500 outline-none"
-                                          />
-                                          <span className="text-slate-400 text-xs">-</span>
-                                          <input
-                                            type="text"
-                                            placeholder="ЧЧ:ММ"
-                                            value={tempTime.end}
-                                            onChange={(e) => handleTempTimeChange(shift.eventId, shift.staffMemberId, shift.roleIndex, 'end', e.target.value)}
-                                            className="w-16 px-1.5 py-0.5 text-center border rounded-md text-xs font-bold bg-white text-slate-800 focus:border-indigo-500 outline-none"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center justify-center space-x-1.5 text-xs text-slate-600">
-                                          <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                          <span className="font-bold">
-                                            {shift.startTime || 'Не указ.'}
-                                          </span>
-                                          <span>-</span>
-                                          <span className="font-bold">
-                                            {shift.endTime || 'Не указ.'}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </td>
-
-                                    {/* Рабочие Часы */}
-                                    <td className="py-3.5 text-right font-bold text-slate-700 px-2 whitespace-nowrap">
-                                      {shift.hours} ч
-                                    </td>
-
-                                    {/* Сумма оплаты */}
-                                    <td className="py-3.5 text-right font-black text-slate-800 px-2 whitespace-nowrap">
-                                      {formatMoney(shift.cost)}
-                                    </td>
-
-                                    {/* Статус оплаты */}
-                                    <td className="py-3.5 text-center px-2">
-                                      <button
-                                        onClick={() => toggleShiftPaid(shift.eventId, shift.staffMemberId, shift.role)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${
-                                          shift.isPaid 
-                                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                                            : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                                        }`}
-                                        title="Нажмите, чтобы изменить статус"
-                                      >
-                                        {shift.isPaid ? (
-                                          <>
-                                            <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                                            Оплачено
-                                          </>
-                                        ) : (
-                                          <>
-                                            <XCircle className="h-3.5 w-3.5 text-amber-600" />
-                                            Не оплачено
-                                          </>
-                                        )}
-                                      </button>
-                                    </td>
-
-                                    {/* Действия (Редактирование времени) */}
-                                    <td className="py-3.5 text-right">
-                                      {isEditing ? (
-                                        <div className="flex items-center justify-end space-x-1">
-                                          <button
-                                            onClick={() => saveShiftTime(shift.eventId, shift.staffMemberId, shift.roleIndex, shift.role)}
-                                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
-                                            title="Сохранить"
-                                          >
-                                            <Check className="h-4 w-4" />
-                                          </button>
-                                          <button
-                                            onClick={() => cancelEditingShift(shift.eventId, shift.staffMemberId, shift.roleIndex)}
-                                            className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                                            title="Отмена"
-                                          >
-                                            <XCircle className="h-4 w-4" />
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          onClick={() => startEditingShift(shift.eventId, shift.staffMemberId, shift.roleIndex, shift.startTime, shift.endTime)}
-                                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex items-center gap-1"
-                                          title="Редактировать время смены"
-                                        >
-                                          <Edit2 className="h-3.5 w-3.5" />
-                                          <span className="text-[10px] font-bold">Время</span>
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div class="flex items-center gap-2">
+                  <h3 class="text-lg font-bold text-slate-800">${person.name}</h3>
+                  ${statusBadge}
                 </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Информационная подсказка */}
-        <div className="mt-8 bg-blue-50 border border-blue-100 rounded-3xl p-5 text-blue-800 flex items-start gap-4">
-          <HelpCircle className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm space-y-1">
-            <h4 className="font-bold text-blue-900">Справка по управлению сменами</h4>
-            <p>
-              Вы можете нажать на любую плашку персонала, чтобы увидеть историю смен этого сотрудника. 
-            </p>
-            <p>
-              В таблице смен вы можете быстро менять статус оплаты кликом по кнопке <strong className="font-semibold">"Оплачено / Не оплачено"</strong>, а также редактировать время начала и окончания смены с помощью кнопки <strong className="font-semibold">"Время"</strong> справа. Изменения автоматически пересчитают количество рабочих часов и сумму к выплате. Все правки сохраняются локально.
-            </p>
-          </div>
-        </div>
-      </main>
-
-      {/* Футер */}
-      <footer className="bg-slate-900 text-slate-400 py-10 mt-16 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold text-white">VN Personnel Management v1.2</p>
-              <p className="text-xs text-slate-500 mt-1">Данные синхронизированы с репозиторием шеф-базы</p>
+                <div class="flex flex-wrap items-center text-xs text-slate-500 gap-x-4 gap-y-1 mt-1">
+                  ${person.phone ? `
+                    <span class="flex items-center gap-1">
+                      <i data-lucide="phone" class="h-3.5 w-3.5 text-slate-400"></i>
+                      ${person.phone}
+                    </span>
+                  ` : ''}
+                  <span class="flex items-center gap-1">
+                    <i data-lucide="calendar" class="h-3.5 w-3.5 text-slate-400"></i>
+                    Смен: <strong class="text-slate-700">${person.totalShiftsCount}</strong> (Опл: ${person.paidShiftsCount})
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-slate-500">
-              © 2026. Разработано для автоматизации учета расходов кейтеринга и банкетных служб.
-            </p>
+
+            <div class="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0">
+              <div class="flex gap-4 sm:gap-6 text-right">
+                <div class="text-left sm:text-right">
+                  <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Часы</span>
+                  <p class="text-sm font-bold text-slate-700">${person.totalHours} ч</p>
+                </div>
+                <div class="text-left sm:text-right">
+                  <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Начислено</span>
+                  <p class="text-sm font-bold text-slate-700">${formatMoney(person.totalCost)}</p>
+                </div>
+                <div class="text-left sm:text-right">
+                  <span class="text-[10px] font-semibold text-amber-500 uppercase tracking-wider">Долг</span>
+                  <p class="text-sm font-black ${person.unpaidAmount > 0 ? 'text-amber-600' : 'text-slate-400'}">
+                    ${formatMoney(person.unpaidAmount)}
+                  </p>
+                </div>
+              </div>
+              <div class="bg-slate-100 p-1.5 rounded-xl text-slate-500">
+                <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="h-5 w-5"></i>
+              </div>
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
+        `;
+
+        // Развернутый блок со списком смен
+        if (isExpanded) {
+          const detailBlock = document.createElement('div');
+          detailBlock.className = "bg-slate-50/70 border-t border-slate-100 p-5 sm:p-6";
+          
+          let tableContent = '';
+          if (person.shifts.length === 0) {
+            tableContent = `<div class="text-center py-6 text-slate-400 text-sm">У данного сотрудника пока нет назначенных смен в базе мероприятий.</div>`;
+          } else {
+            tableContent = `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-slate-200 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                      <th class="pb-2.5 font-semibold">Мероприятие</th>
+                      <th class="pb-2.5 font-semibold">Дата</th>
+                      <th class="pb-2.5 font-semibold">Роль</th>
+                      <th class="pb-2.5 font-semibold text-center">Начало / Конец</th>
+                      <th class="pb-2.5 font-semibold text-right">Часы</th>
+                      <th class="pb-2.5 font-semibold text-right">Сумма</th>
+                      <th class="pb-2.5 font-semibold text-center">Статус</th>
+                      <th class="pb-2.5 font-semibold text-right">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-sm">
+                    ${person.shifts.map(shift => {
+                      const shiftUniqueId = `${shift.eventId}_${shift.staffMemberId}_${shift.roleIndex}`;
+                      const isEditing = !!editingShifts[shiftUniqueId];
+                      
+                      let timeColumnHTML = '';
+                      let actionColumnHTML = '';
+
+                      if (isEditing) {
+                        timeColumnHTML = `
+                          <div class="flex items-center justify-center space-x-1">
+                            <input
+                              type="text"
+                              id="edit-start-${shiftUniqueId}"
+                              placeholder="08:00"
+                              value="${shift.startTime}"
+                              class="w-16 px-1.5 py-0.5 text-center border rounded-md text-xs font-bold bg-white text-slate-800 focus:border-indigo-500 outline-none"
+                            />
+                            <span class="text-slate-400 text-xs">-</span>
+                            <input
+                              type="text"
+                              id="edit-end-${shiftUniqueId}"
+                              placeholder="16:00"
+                              value="${shift.endTime}"
+                              class="w-16 px-1.5 py-0.5 text-center border rounded-md text-xs font-bold bg-white text-slate-800 focus:border-indigo-500 outline-none"
+                            />
+                          </div>
+                        `;
+                        actionColumnHTML = `
+                          <div class="flex items-center justify-end space-x-1">
+                            <button onclick="saveShiftTime('${shift.eventId}', '${shift.staffMemberId}', ${shift.roleIndex}, event)" class="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Сохранить">
+                              <i data-lucide="check" class="h-4 w-4"></i>
+                            </button>
+                            <button onclick="cancelEditingShift('${shiftUniqueId}', event)" class="p-1 text-rose-500 hover:bg-rose-50 rounded" title="Отмена">
+                              <i data-lucide="x-circle" class="h-4 w-4"></i>
+                            </button>
+                          </div>
+                        `;
+                      } else {
+                        timeColumnHTML = `
+                          <div class="flex items-center justify-center space-x-1.5 text-xs text-slate-600">
+                            <i data-lucide="clock" class="h-3.5 w-3.5 text-slate-400"></i>
+                            <span class="font-bold">${shift.startTime || 'Не указ.'}</span>
+                            <span>-</span>
+                            <span class="font-bold">${shift.endTime || 'Не указ.'}</span>
+                          </div>
+                        `;
+                        actionColumnHTML = `
+                          <button onclick="startEditingShift('${shiftUniqueId}', event)" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex items-center gap-1" title="Редактировать время">
+                            <i data-lucide="edit-2" class="h-3.5 w-3.5"></i>
+                            <span class="text-[10px] font-bold">Время</span>
+                          </button>
+                        `;
+                      }
+
+                      return `
+                        <tr class="hover:bg-slate-100/40 transition-colors">
+                          <td class="py-3.5 pr-2">
+                            <div class="font-bold text-slate-800">${shift.eventName}</div>
+                            <div class="text-[10px] text-slate-400 truncate max-w-[150px]">${shift.format}</div>
+                          </td>
+                          <td class="py-3.5 whitespace-nowrap pr-2">
+                            <span class="text-slate-600 font-medium">${shift.displayDate}</span>
+                          </td>
+                          <td class="py-3.5 pr-2">
+                            <span class="inline-block bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-bold">${shift.role}</span>
+                          </td>
+                          <td class="py-3.5 text-center px-2">
+                            ${timeColumnHTML}
+                          </td>
+                          <td class="py-3.5 text-right font-bold text-slate-700 px-2 whitespace-nowrap">${shift.hours} ч</td>
+                          <td class="py-3.5 text-right font-black text-slate-800 px-2 whitespace-nowrap">${formatMoney(shift.cost)}</td>
+                          <td class="py-3.5 text-center px-2">
+                            <button
+                              onclick="togglePaidStatus('${shift.eventId}', '${shift.staffMemberId}', '${shift.role}', event)"
+                              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${
+                                shift.isPaid 
+                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                                  : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                              }"
+                            >
+                              <i data-lucide="${shift.isPaid ? 'check-circle' : 'x-circle'}" class="h-3.5 w-3.5 ${shift.isPaid ? 'text-emerald-600' : 'text-amber-600'}"></i>
+                              ${shift.isPaid ? 'Оплачено' : 'Не оплачено'}
+                            </button>
+                          </td>
+                          <td class="py-3.5 text-right">
+                            ${actionColumnHTML}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+
+          detailBlock.innerHTML = `
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
+              <i data-lucide="clock" class="h-4 w-4 text-indigo-500"></i>
+              История смен и расчетов сотрудника
+            </h4>
+            ${tableContent}
+          `;
+          personEl.appendChild(detailBlock);
+        }
+
+        container.appendChild(personEl);
+      });
+
+      // Перезапускаем инициализацию иконок после инжекта HTML
+      lucide.createIcons();
+    }
+
+    // Логика развертывания плашек
+    function toggleExpand(name) {
+      expandedStaff[name] = !expandedStaff[name];
+      renderStaffList();
+    }
+
+    // Быстрое изменение состояния оплаты роли
+    function togglePaidStatus(eventId, staffId, role, event) {
+      event.stopPropagation(); // Останавливаем всплытие, чтобы плашка не закрылась
+
+      events = events.map(ev => {
+        if (ev.id !== eventId) return ev;
+
+        const updatedStaff = ev.staff.map(member => {
+          if (member.id !== staffId) return member;
+          
+          const currentPaid = member.rolePaid || {};
+          const nextStatus = !currentPaid[role];
+          
+          return {
+            ...member,
+            rolePaid: {
+              ...currentPaid,
+              [role]: nextStatus
+            }
+          };
+        });
+
+        return { ...ev, staff: updatedStaff };
+      });
+
+      localStorage.setItem('vn_modified_events_data', JSON.stringify(events));
+      updateApp();
+    }
+
+    // Вход в режим редактирования смены
+    function startEditingShift(shiftUniqueId, event) {
+      event.stopPropagation();
+      editingShifts[shiftUniqueId] = true;
+      renderStaffList();
+    }
+
+    // Отмена редактирования
+    function cancelEditingShift(shiftUniqueId, event) {
+      event.stopPropagation();
+      delete editingShifts[shiftUniqueId];
+      renderStaffList();
+    }
+
+    // Сохранение отредактированного времени
+    function saveShiftTime(eventId, staffId, roleIndex, event) {
+      event.stopPropagation();
+      
+      const shiftUniqueId = `${eventId}_${staffId}_${roleIndex}`;
+      const startVal = document.getElementById(`edit-start-${shiftUniqueId}`).value;
+      const endVal = document.getElementById(`edit-end-${shiftUniqueId}`).value;
+
+      events = events.map(ev => {
+        if (ev.id !== eventId) return ev;
+
+        const updatedStaff = ev.staff.map(member => {
+          if (member.id !== staffId) return member;
+
+          return {
+            ...member,
+            time: startVal,
+            end: endVal
+          };
+        });
+
+        return { ...ev, staff: updatedStaff };
+      });
+
+      localStorage.setItem('vn_modified_events_data', JSON.stringify(events));
+      
+      delete editingShifts[shiftUniqueId];
+      updateApp();
+    }
+  </script>
+</body>
+</html>
