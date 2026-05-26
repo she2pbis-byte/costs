@@ -75,7 +75,7 @@
                 
                 <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
                     <select id="date-filter" onchange="filterStaff()" class="py-2 px-3 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="all">Все даты</option>
+                        <option value="all">Все даты мероприятий</option>
                     </select>
                     <button onclick="resetData()" class="py-2 px-3 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg text-sm flex items-center gap-1 transition-colors">
                         <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сбросить расчеты
@@ -90,7 +90,7 @@
                         <i data-lucide="users" class="w-6 h-6"></i>
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Всего назначений</p>
+                        <p class="text-sm font-medium text-slate-500">Сотрудников на сменах</p>
                         <p id="stat-total-jobs" class="text-2xl font-bold text-slate-900">0</p>
                     </div>
                 </div>
@@ -115,9 +115,9 @@
             </div>
 
             <!-- Сетка карточек сотрудников -->
-            <div id="catering-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="catering-container" class="space-y-6">
                 <!-- Карточки будут добавлены динамически -->
-                <div class="col-span-full py-12 text-center text-slate-400">
+                <div class="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
                     <div class="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-indigo-600 rounded-full mb-2" role="status"></div>
                     <p>Загрузка данных из репозитория...</p>
                 </div>
@@ -506,7 +506,7 @@
         let staffDatabase = [];
         let eventsData = [];
         let flatStaffList = []; // Преобразованный список смен
-        let userSettings = {}; // Хранение ставок, кастомного времени и чекбоксов (localStorage)
+        let userSettings = {};  // Хранение ставок, кастомного времени и чекбоксов (localStorage)
 
         // Инициализация при загрузке
         window.addEventListener('DOMContentLoaded', async () => {
@@ -518,7 +518,7 @@
             lucide.createIcons();
         });
 
-        // Загрузка сохраненных ставок и статусов оплат из LocalStorage
+        // Загрузка сохраненных настроек из LocalStorage
         function loadSavedSettings() {
             const saved = localStorage.getItem('vn_expense_settings');
             if (saved) {
@@ -550,7 +550,6 @@
         // Запрос данных из репозитория GitHub или fallback на локальные данные
         async function fetchData() {
             try {
-                // Попытка загрузить БД персонала
                 const staffResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json');
                 if (staffResponse.ok) {
                     staffDatabase = await staffResponse.json();
@@ -563,7 +562,6 @@
             }
 
             try {
-                // Попытка загрузить мероприятия
                 const eventsResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json');
                 if (eventsResponse.ok) {
                     eventsData = await eventsResponse.json();
@@ -584,7 +582,6 @@
                 if (!event.staff || event.staff.length === 0) return;
 
                 event.staff.forEach(person => {
-                    // Идентификатор уникального назначения (мероприятие + сотрудник)
                     const shiftId = `${event.id}_${person.id}`;
                     
                     // Поиск оригинального телефона в БД персонала
@@ -595,13 +592,9 @@
                     const custom = userSettings[shiftId] || {};
 
                     // Вычисляем время и часы
-                    // 1. Приоритеты для Времени Прихода: Ввод пользователя -> Время из staff -> Время старта события -> пусто
                     const timeIn = custom.timeIn !== undefined ? custom.timeIn : (person.time || event.start || '');
-                    
-                    // 2. Приоритеты для Времени Ухода: Ввод пользователя -> Время из staff -> Время окончания события -> пусто
                     const timeOut = custom.timeOut !== undefined ? custom.timeOut : (person.end || event.end || '');
 
-                    // Расчет часов
                     let hours = 0;
                     let isCalculated = false;
 
@@ -611,7 +604,6 @@
                         
                         if (!isNaN(hIn) && !isNaN(mIn) && !isNaN(hOut) && !isNaN(mOut)) {
                             let diffMinutes = (hOut * 60 + mOut) - (hIn * 60 + mIn);
-                            // Если ушли на следующий день
                             if (diffMinutes < 0) {
                                 diffMinutes += 24 * 60;
                             }
@@ -620,11 +612,8 @@
                         }
                     }
 
-                    // Если автоматического расчета нет, берем ручное значение часов от пользователя (по дефолту 0)
                     if (!isCalculated && custom.manualHours !== undefined) {
                         hours = parseFloat(custom.manualHours) || 0;
-                    } else if (!isCalculated) {
-                        hours = 0; // Изначально пустое, если нет времени события
                     }
 
                     const rate = custom.rate !== undefined ? parseFloat(custom.rate) : 0;
@@ -653,16 +642,12 @@
                     });
                 });
             });
-
-            // Сортировка: сначала новые мероприятия
-            flatStaffList.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
         }
 
         // Сбор уникальных дат для фильтрации
         function buildDateFilter() {
             const select = document.getElementById('date-filter');
-            // Очистка кроме первой опции
-            select.innerHTML = '<option value="all">Все даты</option>';
+            select.innerHTML = '<option value="all">Все даты мероприятий</option>';
 
             const dates = [...new Set(flatStaffList.map(item => item.eventDate))];
             dates.sort((a, b) => new Date(b) - new Date(a));
@@ -693,245 +678,55 @@
                     sec.classList.add('hidden');
                 }
             });
-            // Реинициализация иконок в случае перерисовок
             lucide.createIcons();
         }
 
-        // Рендеринг карточек сотрудников (Кейтеринг)
-        function renderCatering(filteredList = flatStaffList) {
-            const container = document.getElementById('catering-container');
-            container.innerHTML = '';
-
-            if (filteredList.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full py-16 text-center bg-white rounded-xl border border-slate-200">
-                        <i data-lucide="folder-open" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
-                        <p class="text-slate-500 font-medium">Смены не найдены</p>
-                        <p class="text-xs text-slate-400 mt-1">Попробуйте изменить поисковый запрос или фильтр по дате</p>
-                    </div>
-                `;
-                lucide.createIcons();
-                updateStats(filteredList);
-                return;
-            }
-
-            filteredList.forEach(item => {
-                const card = document.createElement('div');
-                
-                // Классы оформления на основании статусов оплаты
-                let cardBorderClass = 'border-slate-200 hover:border-indigo-200';
-                let cardBgClass = 'bg-white';
-                
-                if (item.isPaid) {
-                    cardBorderClass = 'border-emerald-200';
-                    cardBgClass = 'bg-emerald-50/30';
-                } else if (item.isRko) {
-                    cardBorderClass = 'border-blue-200';
-                    cardBgClass = 'bg-blue-50/10';
+        // Группировка, сортировка сотрудников и их смен
+        function groupAndSortData(filteredList) {
+            // Группируем смены по сотрудникам
+            const staffGroups = {};
+            
+            filteredList.forEach(shift => {
+                const key = shift.personName;
+                if (!staffGroups[key]) {
+                    staffGroups[key] = {
+                        name: shift.personName,
+                        phone: shift.phone,
+                        shifts: []
+                    };
                 }
-
-                card.className = `transition-all duration-200 rounded-xl border p-5 shadow-sm hover:shadow-md ${cardBgClass} ${cardBorderClass} flex flex-col justify-between`;
-                card.id = `card-${item.shiftId}`;
-
-                card.innerHTML = `
-                    <div class="space-y-4">
-                        <!-- Название мероприятия и Дата -->
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <span class="inline-block text-[11px] font-semibold tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">
-                                    ${item.displayDate}
-                                </span>
-                                <h3 class="text-base font-bold text-slate-800 mt-1.5 leading-snug">${item.eventName}</h3>
-                                <p class="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                    ${item.eventFormat}
-                                </p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-xs text-slate-400 font-medium block">Роль</span>
-                                <span class="text-sm font-semibold text-slate-700">${item.role}</span>
-                            </div>
-                        </div>
-
-                        <!-- ФИО сотрудника -->
-                        <div class="border-t border-b border-slate-100 py-3 flex items-center justify-between">
-                            <div>
-                                <h4 class="text-lg font-bold text-slate-900">${item.personName}</h4>
-                                <a href="tel:${item.phone}" class="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 mt-0.5">
-                                    <i data-lucide="phone" class="w-3 h-3"></i> ${item.phone}
-                                </a>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-xs text-slate-400">Сумма</span>
-                                <div id="amount-${item.shiftId}" class="text-xl font-extrabold text-indigo-600">
-                                    ${item.amount.toLocaleString('ru-RU')} ₽
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Рабочие часы -->
-                        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Приход</label>
-                                <input type="text" 
-                                       placeholder="--:--" 
-                                       value="${item.timeIn}" 
-                                       onchange="updateShiftField('${item.shiftId}', 'timeIn', this.value)"
-                                       class="w-full text-center py-1 border border-slate-200 rounded bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Уход</label>
-                                <input type="text" 
-                                       placeholder="--:--" 
-                                       value="${item.timeOut}" 
-                                       onchange="updateShiftField('${item.shiftId}', 'timeOut', this.value)"
-                                       class="w-full text-center py-1 border border-slate-200 rounded bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            </div>
-                            
-                            <!-- Вывод отработанного времени -->
-                            <div class="col-span-2 pt-1 border-t border-slate-200/60 flex justify-between items-center">
-                                <span class="text-xs font-medium text-slate-500">Время работы:</span>
-                                <div class="flex items-center space-x-2">
-                                    ${item.isCalculated ? 
-                                        `<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-0.5">
-                                            <i data-lucide="check" class="w-3 h-3"></i> Авто: ${item.hours} ч
-                                         </span>` : 
-                                        `<div class="flex items-center space-x-1">
-                                            <input type="number" 
-                                                   step="0.5" 
-                                                   placeholder="0" 
-                                                   value="${item.manualHours}" 
-                                                   oninput="updateShiftField('${item.shiftId}', 'manualHours', this.value)"
-                                                   class="w-14 text-center py-0.5 border border-slate-200 rounded text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500">
-                                            <span class="text-xs text-slate-400 font-bold">ч</span>
-                                         </div>`
-                                    }
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Финансовая часть: Ставка -->
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-slate-500">Ставка (в час):</span>
-                            <div class="relative w-32">
-                                <input type="number" 
-                                       step="10" 
-                                       placeholder="0" 
-                                       value="${item.rate || ''}" 
-                                       oninput="updateShiftField('${item.shiftId}', 'rate', this.value)"
-                                       class="w-full text-right pr-7 pl-2 py-1 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">₽</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Чекбоксы статусов -->
-                    <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                        <!-- РКО выписано -->
-                        <label class="flex items-center space-x-2 cursor-pointer select-none group">
-                            <div class="relative">
-                                <input type="checkbox" 
-                                       ${item.isRko ? 'checked' : ''} 
-                                       onchange="toggleCheckState('${item.shiftId}', 'isRko', this.checked)"
-                                       class="sr-only peer">
-                                <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                            </div>
-                            <span class="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">РКО</span>
-                        </label>
-
-                        <!-- Оплата совершена -->
-                        <label class="flex items-center space-x-2 cursor-pointer select-none group">
-                            <span class="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">Оплачено</span>
-                            <div class="relative">
-                                <input type="checkbox" 
-                                       ${item.isPaid ? 'checked' : ''} 
-                                       onchange="toggleCheckState('${item.shiftId}', 'isPaid', this.checked)"
-                                       class="sr-only peer">
-                                <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                            </div>
-                        </label>
-                    </div>
-                `;
-
-                container.appendChild(card);
+                staffGroups[key].shifts.push(shift);
             });
 
-            lucide.createIcons();
-            updateStats(filteredList);
+            // Преобразуем в массив
+            const staffArray = Object.values(staffGroups);
+
+            // 1. Сортировка сотрудников по алфавиту А-Я
+            staffArray.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+            // 2. Сортировка смен внутри сотрудника от прошлых к будущим (хронологически)
+            staffArray.forEach(group => {
+                group.shifts.sort((a, b) => {
+                    // Сначала по дате
+                    const dateDiff = new Date(a.eventDate) - new Date(b.eventDate);
+                    if (dateDiff !== 0) return dateDiff;
+                    // Если дата одна, сортируем по времени начала смены
+                    return (a.timeIn || '00:00').localeCompare(b.timeIn || '00:00');
+                });
+            });
+
+            return staffArray;
         }
 
-        // Обновление ставки или времени
-        function updateShiftField(shiftId, fieldName, value) {
-            if (!userSettings[shiftId]) {
-                userSettings[shiftId] = {};
-            }
-            
-            userSettings[shiftId][fieldName] = value;
-            saveSettings();
-            
-            // Перерасчитываем
-            processData();
-            
-            // Находим обновленный элемент в списке
-            const updatedItem = flatStaffList.find(i => i.shiftId === shiftId);
-            if (updatedItem) {
-                // Прямое обновление суммы на карточке без полного перерендерирования
-                const amountEl = document.getElementById(`amount-${shiftId}`);
-                if (amountEl) {
-                    amountEl.textContent = `${updatedItem.amount.toLocaleString('ru-RU')} ₽`;
-                }
-
-                // В случае изменения времени - обновим карточку целиком для корректного отображения ручных/авто часов
-                if (fieldName === 'timeIn' || fieldName === 'timeOut' || fieldName === 'manualHours') {
-                    // Медленный рендер только измененных полей для сохранения фокуса ввода
-                    const searchVal = document.getElementById('search-input').value;
-                    const dateFilterVal = document.getElementById('date-filter').value;
-                    applyFilters(searchVal, dateFilterVal);
-                }
-            }
-        }
-
-        // Переключение чекбокса РКО / Оплачено
-        function toggleCheckState(shiftId, fieldName, checked) {
-            if (!userSettings[shiftId]) {
-                userSettings[shiftId] = {};
-            }
-
-            userSettings[shiftId][fieldName] = checked;
-            saveSettings();
-            
-            // Перерасчет данных локально
-            processData();
-
-            // Изменяем стиль плашки динамически
-            const card = document.getElementById(`card-${shiftId}`);
-            if (card) {
-                const updatedItem = flatStaffList.find(i => i.shiftId === shiftId);
-                
-                // Сброс классов
-                card.className = "transition-all duration-200 rounded-xl border p-5 shadow-sm hover:shadow-md bg-white border-slate-200 hover:border-indigo-200 flex flex-col justify-between";
-                
-                if (updatedItem.isPaid) {
-                    card.classList.add('bg-emerald-50/30', 'border-emerald-200');
-                    card.classList.remove('bg-white', 'border-slate-200');
-                } else if (updatedItem.isRko) {
-                    card.classList.add('bg-blue-50/10', 'border-blue-200');
-                    card.classList.remove('bg-white', 'border-slate-200');
-                }
-            }
-        }
-
-        // Логика фильтрации и поиска
-        function filterStaff() {
+        // Рендеринг карточек сотрудников и таблиц их смен
+        function renderCatering() {
             const searchVal = document.getElementById('search-input').value;
             const dateFilterVal = document.getElementById('date-filter').value;
-            applyFilters(searchVal, dateFilterVal);
-        }
-
-        function applyFilters(searchVal, dateFilterVal) {
+            
             const query = searchVal.toLowerCase().trim();
             
-            const filtered = flatStaffList.filter(item => {
+            // Сначала фильтруем базовый список
+            const filteredShifts = flatStaffList.filter(item => {
                 const matchesSearch = item.personName.toLowerCase().includes(query) || 
                                       item.eventName.toLowerCase().includes(query) || 
                                       item.role.toLowerCase().includes(query);
@@ -941,12 +736,238 @@
                 return matchesSearch && matchesDate;
             });
 
-            renderCatering(filtered);
+            // Группируем и сортируем по правилам
+            const groupedStaff = groupAndSortData(filteredShifts);
+            
+            const container = document.getElementById('catering-container');
+            container.innerHTML = '';
+
+            if (groupedStaff.length === 0) {
+                container.innerHTML = `
+                    <div class="py-16 text-center bg-white rounded-xl border border-slate-200 shadow-sm">
+                        <i data-lucide="folder-open" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+                        <p class="text-slate-500 font-medium">Сотрудники или смены не найдены</p>
+                        <p class="text-xs text-slate-400 mt-1">Попробуйте изменить поисковый запрос или фильтр по дате</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                updateStats(filteredShifts);
+                return;
+            }
+
+            groupedStaff.forEach(staff => {
+                // Подсчет общих финансовых итогов по данному сотруднику
+                const totalEmployeeHours = staff.shifts.reduce((sum, s) => sum + s.hours, 0);
+                const totalEmployeeEarned = staff.shifts.reduce((sum, s) => sum + s.amount, 0);
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md";
+                
+                // Содержимое карточки сотрудника
+                let cardHtml = `
+                    <!-- Заголовок карточки с ФИО -->
+                    <div class="bg-slate-50/70 border-b border-slate-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center space-x-3.5">
+                            <div class="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 font-bold flex items-center justify-center text-base">
+                                ${staff.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-950 flex items-center gap-2">
+                                    ${staff.name}
+                                    <span class="text-xs font-normal text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md">
+                                        Смен: ${staff.shifts.length}
+                                    </span>
+                                </h3>
+                                <a href="tel:${staff.phone}" class="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 mt-0.5 transition-colors">
+                                    <i data-lucide="phone" class="w-3.5 h-3.5"></i> ${staff.phone}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4 self-end sm:self-center">
+                            <div class="text-right">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Всего часов</span>
+                                <p class="text-sm font-bold text-slate-700">${parseFloat(totalEmployeeHours.toFixed(2))} ч</p>
+                            </div>
+                            <div class="h-8 w-px bg-slate-200"></div>
+                            <div class="text-right">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">К выплате</span>
+                                <p class="text-base font-extrabold text-indigo-600">${Math.round(totalEmployeeEarned).toLocaleString('ru-RU')} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Табличная часть смен -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50/30 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                    <th class="py-3 px-6">Мероприятие / Формат</th>
+                                    <th class="py-3 px-3">Роль</th>
+                                    <th class="py-3 px-3 text-center w-28">Приход</th>
+                                    <th class="py-3 px-3 text-center w-28">Уход</th>
+                                    <th class="py-3 px-3 text-center w-28">Часы работы</th>
+                                    <th class="py-3 px-3 text-center w-36">Ставка в час</th>
+                                    <th class="py-3 px-3 text-right">Расчет</th>
+                                    <th class="py-3 px-3 text-center w-24">РКО</th>
+                                    <th class="py-3 px-6 text-center w-24">Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                `;
+
+                // Строки таблицы смен
+                staff.shifts.forEach(shift => {
+                    const rowBgClass = shift.isPaid ? 'bg-emerald-50/20' : (shift.isRko ? 'bg-blue-50/10' : 'hover:bg-slate-50/30');
+                    const rowBorderClass = shift.isPaid ? 'border-l-4 border-l-emerald-500' : (shift.isRko ? 'border-l-4 border-l-blue-400' : '');
+
+                    cardHtml += `
+                        <tr class="${rowBgClass} ${rowBorderClass} transition-colors">
+                            <!-- Мероприятие -->
+                            <td class="py-4 px-6">
+                                <span class="inline-block text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mb-1">
+                                    ${shift.displayDate}
+                                </span>
+                                <div class="font-bold text-slate-800 leading-tight">${shift.eventName}</div>
+                                <div class="text-xs text-slate-400 mt-0.5">${shift.eventFormat}</div>
+                            </td>
+                            
+                            <!-- Роль -->
+                            <td class="py-4 px-3 text-slate-600 font-medium">
+                                ${shift.role}
+                            </td>
+
+                            <!-- Приход -->
+                            <td class="py-4 px-3">
+                                <input type="text" 
+                                       placeholder="--:--" 
+                                       value="${shift.timeIn}" 
+                                       onchange="updateShiftField('${shift.shiftId}', 'timeIn', this.value)"
+                                       class="w-full text-center py-1 border border-slate-200 rounded text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            </td>
+
+                            <!-- Уход -->
+                            <td class="py-4 px-3">
+                                <input type="text" 
+                                       placeholder="--:--" 
+                                       value="${shift.timeOut}" 
+                                       onchange="updateShiftField('${shift.shiftId}', 'timeOut', this.value)"
+                                       class="w-full text-center py-1 border border-slate-200 rounded text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            </td>
+
+                            <!-- Отработанные часы -->
+                            <td class="py-4 px-3 text-center">
+                                ${shift.isCalculated ? 
+                                    `<span class="inline-block text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded">
+                                        Авто: ${shift.hours} ч
+                                     </span>` : 
+                                    `<div class="flex items-center justify-center space-x-1">
+                                        <input type="number" 
+                                               step="0.5" 
+                                               placeholder="0" 
+                                               value="${shift.manualHours}" 
+                                               oninput="updateShiftField('${shift.shiftId}', 'manualHours', this.value)"
+                                               class="w-14 text-center py-1 border border-slate-200 rounded text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500">
+                                        <span class="text-xs text-slate-400 font-bold">ч</span>
+                                     </div>`
+                                }
+                            </td>
+
+                            <!-- Ставка в час -->
+                            <td class="py-4 px-3">
+                                <div class="relative w-28 mx-auto">
+                                    <input type="number" 
+                                           step="10" 
+                                           placeholder="0" 
+                                           value="${shift.rate || ''}" 
+                                           oninput="updateShiftField('${shift.shiftId}', 'rate', this.value)"
+                                           class="w-full text-right pr-6 pl-1.5 py-1 border border-slate-200 rounded text-sm font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">₽</span>
+                                </div>
+                            </td>
+
+                            <!-- Начисленные деньги -->
+                            <td class="py-4 px-3 text-right font-extrabold text-indigo-600">
+                                ${shift.amount.toLocaleString('ru-RU')} ₽
+                            </td>
+
+                            <!-- Чекбокс РКО -->
+                            <td class="py-4 px-3 text-center">
+                                <label class="inline-flex items-center justify-center cursor-pointer select-none">
+                                    <input type="checkbox" 
+                                           ${shift.isRko ? 'checked' : ''} 
+                                           onchange="toggleCheckState('${shift.shiftId}', 'isRko', this.checked)"
+                                           class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 relative"></div>
+                                </label>
+                            </td>
+
+                            <!-- Чекбокс Оплачено -->
+                            <td class="py-4 px-6 text-center">
+                                <label class="inline-flex items-center justify-center cursor-pointer select-none">
+                                    <input type="checkbox" 
+                                           ${shift.isPaid ? 'checked' : ''} 
+                                           onchange="toggleCheckState('${shift.shiftId}', 'isPaid', this.checked)"
+                                           class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 relative"></div>
+                                </label>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                cardHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                card.innerHTML = cardHtml;
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            updateStats(filteredShifts);
         }
 
-        // Обновление виджетов сводной статистики
+        // Обновление числовых параметров смены
+        function updateShiftField(shiftId, fieldName, value) {
+            if (!userSettings[shiftId]) {
+                userSettings[shiftId] = {};
+            }
+            
+            userSettings[shiftId][fieldName] = value;
+            saveSettings();
+            
+            // Перерассчитываем данные
+            processData();
+            
+            // Быстро рендерим интерфейс с сохранением прокрутки и введенного поиска
+            renderCatering();
+        }
+
+        // Переключение статуса РКО / Оплачено
+        function toggleCheckState(shiftId, fieldName, checked) {
+            if (!userSettings[shiftId]) {
+                userSettings[shiftId] = {};
+            }
+
+            userSettings[shiftId][fieldName] = checked;
+            saveSettings();
+            
+            processData();
+            renderCatering();
+        }
+
+        // Логика фильтрации и поиска
+        function filterStaff() {
+            renderCatering();
+        }
+
+        // Сводная финансовая статистика по отфильтрованному списку смен
         function updateStats(list = flatStaffList) {
-            const totalJobs = list.length;
+            // Подсчитываем уникальных сотрудников, у которых есть смены в текущей выборке
+            const uniqueStaffNames = new Set(list.map(item => item.personName));
+            
             let totalHours = 0;
             let totalAmount = 0;
 
@@ -955,7 +976,7 @@
                 totalAmount += item.amount;
             });
 
-            document.getElementById('stat-total-jobs').textContent = totalJobs;
+            document.getElementById('stat-total-jobs').textContent = uniqueStaffNames.size;
             document.getElementById('stat-total-hours').textContent = `${parseFloat(totalHours.toFixed(1))} ч`;
             document.getElementById('stat-total-amount').textContent = `${Math.round(totalAmount).toLocaleString('ru-RU')} ₽`;
         }
