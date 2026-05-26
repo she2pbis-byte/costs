@@ -137,7 +137,7 @@
           <i data-lucide="alert-circle" class="h-7 w-7"></i>
         </div>
         <div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Долг (К выплате)</p>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Текущий долг</p>
           <p id="stat-unpaid-amount" class="text-2xl font-black text-amber-600 mt-1">0 ₽</p>
           <p id="stat-unpaid-shifts-count" class="text-xs text-slate-500 mt-0.5">0 неопл. смен</p>
         </div>
@@ -172,7 +172,7 @@
           <button data-filter="all" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">
             Все сотрудники (<span id="count-all">0</span>)
           </button>
-          <button data-filter="has_unpaid" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+          <button data-filter="has_unpaid" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent">
             Есть долг (<span id="count-unpaid">0</span>)
           </button>
           <button data-filter="all_paid" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
@@ -203,6 +203,10 @@
         <h4 class="font-bold text-blue-900">Справка по управлению сменами</h4>
         <p>Нажмите на любую плашку персонала, чтобы развернуть детальную информацию и посмотреть список его смен.</p>
         <p>Вы можете на лету редактировать время начала/окончания смены сотрудника (кнопка <strong>"Время"</strong>), а также быстро переключать состояние оплаты простым нажатием на кнопку статуса <strong>"Оплачено / Не оплачено"</strong>.</p>
+        <p class="text-blue-900 font-semibold flex items-center gap-1 mt-2">
+          <i data-lucide="info" class="h-4 w-4"></i>
+          Обратите внимание: долгом считаются только прошедшие и сегодняшние неоплаченные мероприятия. Будущие запланированные смены не увеличивают сумму текущего долга.
+        </p>
       </div>
     </div>
 
@@ -806,6 +810,10 @@
 
     // Расчет полной аналитики для каждого сотрудника
     function getAnalyticList() {
+      // Получаем сегодняшнюю дату в формате YYYY-MM-DD в местном часовом поясе
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
       return staff.map(person => {
         const shifts = getStaffShifts(person.name);
         const totalHours = shifts.reduce((acc, s) => acc + s.hours, 0);
@@ -813,9 +821,13 @@
         
         const paidShifts = shifts.filter(s => s.isPaid);
         const unpaidShifts = shifts.filter(s => !s.isPaid);
+
+        // Расчет задолженностей: учитываем только прошедшие и сегодняшние неоплаченные мероприятия (date <= todayStr)
+        const dueUnpaidShifts = unpaidShifts.filter(s => s.eventDate <= todayStr);
         
         const paidAmount = paidShifts.reduce((acc, s) => acc + s.cost, 0);
-        const unpaidAmount = unpaidShifts.reduce((acc, s) => acc + s.cost, 0);
+        // Долгом считается только то, что уже состоялось (прошедшие и сегодняшние смены)
+        const unpaidAmount = dueUnpaidShifts.reduce((acc, s) => acc + s.cost, 0);
 
         return {
           ...person,
@@ -823,11 +835,12 @@
           totalShiftsCount: shifts.length,
           paidShiftsCount: paidShifts.length,
           unpaidShiftsCount: unpaidShifts.length,
+          dueUnpaidShiftsCount: dueUnpaidShifts.length, // Храним количество просроченных неоплаченных смен
           totalHours,
           totalCost,
           paidAmount,
           unpaidAmount,
-          hasUnpaid: unpaidShifts.length > 0
+          hasUnpaid: dueUnpaidShifts.length > 0 // Долг триггерится только если есть неоплаченные смены до сегодняшнего дня включительно
         };
       });
     }
@@ -842,6 +855,7 @@
       let totalAllCost = 0;
       let totalAllPaidAmount = 0;
       let totalAllUnpaidAmount = 0;
+      let totalAllUnpaidShiftsCount = 0;
       let totalAllHours = 0;
 
       list.forEach(p => {
@@ -849,7 +863,8 @@
         totalAllPaidShifts += p.paidShiftsCount;
         totalAllCost += p.totalCost;
         totalAllPaidAmount += p.paidAmount;
-        totalAllUnpaidAmount += p.unpaidAmount;
+        totalAllUnpaidAmount += p.unpaidAmount; // Это уже отфильтрованный долг (только прошедшие + сегодняшние)
+        totalAllUnpaidShiftsCount += p.dueUnpaidShiftsCount; // Количество просроченных смен
         totalAllHours += p.totalHours;
       });
 
@@ -863,7 +878,7 @@
       document.getElementById('stat-paid-shifts-count').textContent = `${totalAllPaidShifts} из ${totalAllShifts} смен`;
       
       document.getElementById('stat-unpaid-amount').textContent = formatMoney(totalAllUnpaidAmount);
-      document.getElementById('stat-unpaid-shifts-count').textContent = `${totalAllShifts - totalAllPaidShifts} неопл. смен`;
+      document.getElementById('stat-unpaid-shifts-count').textContent = `${totalAllUnpaidShiftsCount} неопл. смен`;
       
       document.getElementById('stat-paid-percent').textContent = `${paidPercentage}%`;
       document.getElementById('stat-paid-progress').style.width = `${paidPercentage}%`;
@@ -915,7 +930,7 @@
       // Генерация HTML плашек
       filtered.forEach(person => {
         const isExpanded = !!expandedStaff[person.name];
-        const hasUnpaid = person.hasUnpaid;
+        const hasUnpaid = person.hasUnpaid; // True только если долг относится к прошедшим/текущим мероприятиям
         
         let statusBadge = '';
         let initialBg = 'bg-slate-100 text-slate-400';
@@ -1074,6 +1089,47 @@
                         `;
                       }
 
+                      // Проверяем, является ли мероприятие будущим
+                      const now = new Date();
+                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      const isFuture = shift.eventDate > todayStr;
+
+                      let statusButtonHTML = '';
+                      if (shift.isPaid) {
+                        statusButtonHTML = `
+                          <button
+                            onclick="togglePaidStatus('${shift.eventId}', '${shift.staffMemberId}', '${shift.role}', event)"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          >
+                            <i data-lucide="check-circle" class="h-3.5 w-3.5 text-emerald-600"></i>
+                            Оплачено
+                          </button>
+                        `;
+                      } else if (isFuture) {
+                        // Будущая неоплаченная смена — рендерится в нейтральных синих/серых тонах, чтобы визуально отличаться от долга
+                        statusButtonHTML = `
+                          <button
+                            onclick="togglePaidStatus('${shift.eventId}', '${shift.staffMemberId}', '${shift.role}', event)"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            title="Будущая смена (не учитывается в текущем долге)"
+                          >
+                            <i data-lucide="calendar" class="h-3.5 w-3.5 text-slate-400"></i>
+                            Запланировано
+                          </button>
+                        `;
+                      } else {
+                        // Прошедшая неоплаченная смена — яркий долг
+                        statusButtonHTML = `
+                          <button
+                            onclick="togglePaidStatus('${shift.eventId}', '${shift.staffMemberId}', '${shift.role}', event)"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm bg-amber-100 text-amber-800 hover:bg-amber-200 animate-pulse"
+                          >
+                            <i data-lucide="x-circle" class="h-3.5 w-3.5 text-amber-600"></i>
+                            Не оплачено
+                          </button>
+                        `;
+                      }
+
                       return `
                         <tr class="hover:bg-slate-100/40 transition-colors">
                           <td class="py-3.5 pr-2">
@@ -1082,6 +1138,7 @@
                           </td>
                           <td class="py-3.5 whitespace-nowrap pr-2">
                             <span class="text-slate-600 font-medium">${shift.displayDate}</span>
+                            ${isFuture ? '<span class="ml-1 text-[9px] bg-slate-200 text-slate-700 px-1 py-0.2 rounded font-bold">Будущее</span>' : ''}
                           </td>
                           <td class="py-3.5 pr-2">
                             <span class="inline-block bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-bold">${shift.role}</span>
@@ -1092,17 +1149,7 @@
                           <td class="py-3.5 text-right font-bold text-slate-700 px-2 whitespace-nowrap">${shift.hours} ч</td>
                           <td class="py-3.5 text-right font-black text-slate-800 px-2 whitespace-nowrap">${formatMoney(shift.cost)}</td>
                           <td class="py-3.5 text-center px-2">
-                            <button
-                              onclick="togglePaidStatus('${shift.eventId}', '${shift.staffMemberId}', '${shift.role}', event)"
-                              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${
-                                shift.isPaid 
-                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                                  : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                              }"
-                            >
-                              <i data-lucide="${shift.isPaid ? 'check-circle' : 'x-circle'}" class="h-3.5 w-3.5 ${shift.isPaid ? 'text-emerald-600' : 'text-amber-600'}"></i>
-                              ${shift.isPaid ? 'Оплачено' : 'Не оплачено'}
-                            </button>
+                            ${statusButtonHTML}
                           </td>
                           <td class="py-3.5 text-right">
                             ${actionColumnHTML}
@@ -1186,9 +1233,14 @@
     function saveShiftTime(eventId, staffId, roleIndex, event) {
       event.stopPropagation();
       
-      const shiftUniqueId = `${eventId}_${staffId}_${roleIndex}`;
-      const startVal = document.getElementById(`edit-start-${shiftUniqueId}`).value;
-      const endVal = document.getElementById(`edit-end-${shiftUniqueId}`).value;
+      const shiftUniqueId = `${eventId}_${staffId}_role_${roleIndex}`;
+      const editStartEl = document.getElementById(`edit-start-${shiftUniqueId}`);
+      const editEndEl = document.getElementById(`edit-end-${shiftUniqueId}`);
+      
+      // На случай если id имеет другую структуру (например без role_ )
+      const fallbackId = `${eventId}_${staffId}_${roleIndex}`;
+      const startVal = (editStartEl || document.getElementById(`edit-start-${fallbackId}`)).value;
+      const endVal = (editEndEl || document.getElementById(`edit-end-${fallbackId}`)).value;
 
       events = events.map(ev => {
         if (ev.id !== eventId) return ev;
@@ -1208,7 +1260,9 @@
 
       localStorage.setItem('vn_modified_events_data', JSON.stringify(events));
       
+      // Удаляем из режима редактирования оба варианта ID для надежности
       delete editingShifts[shiftUniqueId];
+      delete editingShifts[fallbackId];
       updateApp();
     }
   </script>
