@@ -48,7 +48,15 @@
         </div>
       </div>
       
-      <div>
+      <div class="flex items-center space-x-2">
+        <!-- Кнопка принудительного обновления БД -->
+        <button
+          onclick="loadEmployeesFromDatabase()"
+          class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all"
+          title="Обновить базу данных"
+        >
+          <i data-lucide="refresh-cw" id="sync-icon" class="h-5 w-5"></i>
+        </button>
         <button
           onclick="openEmployeeModal()"
           class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 shadow-sm flex items-center space-x-2"
@@ -59,6 +67,19 @@
       </div>
     </div>
   </header>
+
+  <!-- Информационный баннер синхронизации -->
+  <div id="sync-banner" class="bg-indigo-50 border-b border-indigo-100 px-4 py-2 transition-all hidden">
+    <div class="max-w-7xl mx-auto text-xs text-indigo-800 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="info" class="h-4 w-4 text-indigo-500"></i>
+        <span id="sync-banner-text">Загрузка базы данных сотрудников...</span>
+      </div>
+      <button onclick="hideSyncBanner()" class="text-indigo-500 hover:text-indigo-800">
+        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+      </button>
+    </div>
+  </div>
 
   <!-- Основной контент -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
@@ -94,7 +115,7 @@
 
     <!-- ПРАВАЯ КОЛОНКА: Смены выбранного сотрудника или пустой экран -->
     <section id="details-section" class="flex-1 flex flex-col">
-      <!-- Контент обновляется динамически через JS (showDashboard() или showEmployeeDetails()) -->
+      <!-- Контент обновляется динамически через JS -->
     </section>
 
   </main>
@@ -370,20 +391,24 @@
         &copy; 2026 StaffShift Pro. Все права защищены.
       </p>
       <div class="flex items-center space-x-4 text-xs text-indigo-600 font-semibold">
-        <span>Интерактивный HTML режим</span>
+        <span>Интерактивный HTML режим + База Github</span>
       </div>
     </div>
   </footer>
 
   <!-- СКРИПТ ПРИЛОЖЕНИЯ -->
   <script>
-    // Первоначальные демонстрационные данные
+    // URL для получения базы данных персонала напрямую из вашего репозитория github
+    const DATABASE_URL = 'https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json';
+
+    // Первоначальные демонстрационные данные (используются как резервная копия при сбое сети)
     let employees = [
       { id: '1', name: 'Александр Иванов', role: 'Старший бариста', phone: '+7 (911) 123-45-67' },
       { id: '2', name: 'Мария Смирнова', role: 'Администратор', phone: '+7 (921) 987-65-43' },
       { id: '3', name: 'Дмитрий Петров', role: 'Повар', phone: '+7 (931) 555-01-23' }
     ];
 
+    // Базовые смены для демонстрации
     let shifts = [
       { id: 's1', employeeId: '1', startTime: '2026-05-25T08:00', endTime: '2026-05-25T18:00', hasReceipt: true, isPaid: true, rate: 350 },
       { id: 's2', employeeId: '1', startTime: '2026-05-26T08:00', endTime: '2026-05-26T17:00', hasReceipt: false, isPaid: false, rate: 350 },
@@ -399,7 +424,74 @@
     let tempReceiptState = false;
     let tempPaidState = false;
 
-    // Вспомогательные функции
+    // Функция загрузки данных персонала из репозитория
+    async function loadEmployeesFromDatabase() {
+      showSyncBanner("Синхронизация с Github...");
+      const syncIcon = document.getElementById('sync-icon');
+      if (syncIcon) syncIcon.classList.add('animate-spin');
+
+      try {
+        const response = await fetch(DATABASE_URL);
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Преобразуем полученные данные в структуру нашего приложения
+        // Допускаем, что в JSON может быть массив объектов или объект с ключами.
+        const rawList = Array.isArray(data) ? data : (data.staff || data.employees || []);
+        
+        if (rawList.length > 0) {
+          employees = rawList.map((item, index) => {
+            // Поддержка различных вариантов именования ключей в JSON
+            return {
+              id: item.id ? item.id.toString() : (index + 1).toString(),
+              name: item.name || item.fullName || item.fio || 'Без имени',
+              role: item.role || item.position || item.job || 'Должность не указана',
+              phone: item.phone || item.telephone || item.contacts || ''
+            };
+          });
+
+          showSyncBanner("Данные персонала успешно загружены из репозитория!", "success");
+        } else {
+          showSyncBanner("Файл пуст или имеет неверную структуру. Загружены локальные демо-данные.", "warning");
+        }
+
+      } catch (error) {
+        console.error("Ошибка при получении базы сотрудников:", error);
+        showSyncBanner("Не удалось загрузить базу с Github. Используются локальные демо-данные.", "warning");
+      } finally {
+        if (syncIcon) syncIcon.classList.remove('animate-spin');
+        renderEmployees();
+        renderDetails();
+        setTimeout(hideSyncBanner, 5000);
+      }
+    }
+
+    // Показать плашку статуса
+    function showSyncBanner(text, type = "info") {
+      const banner = document.getElementById('sync-banner');
+      const textSpan = document.getElementById('sync-banner-text');
+      
+      banner.classList.remove('hidden', 'bg-indigo-50', 'border-indigo-100', 'text-indigo-800', 'bg-emerald-50', 'border-emerald-100', 'text-emerald-800', 'bg-amber-50', 'border-amber-100', 'text-amber-800');
+      textSpan.innerText = text;
+
+      if (type === "success") {
+        banner.classList.add('bg-emerald-50', 'border-emerald-100', 'text-emerald-800');
+      } else if (type === "warning") {
+        banner.classList.add('bg-amber-50', 'border-amber-100', 'text-amber-800');
+      } else {
+        banner.classList.add('bg-indigo-50', 'border-indigo-100', 'text-indigo-800');
+      }
+      banner.classList.remove('hidden');
+    }
+
+    function hideSyncBanner() {
+      document.getElementById('sync-banner').classList.add('hidden');
+    }
+
+    // Вспомогательные расчетные функции
     function calculateHours(start, end) {
       if (!start || !end) return 0;
       const startTime = new Date(start);
@@ -731,6 +823,11 @@
       renderEmployees();
     }
 
+    // Редактирование существующего сотрудника
+    function editEmployee(employeeId) {
+      openEmployeeModal(employeeId);
+    }
+
     // Управление модалкой СОТРУДНИКА
     function openEmployeeModal(employeeId = null) {
       const modal = document.getElementById('employee-modal');
@@ -978,8 +1075,8 @@
 
     // Инициализация при загрузке страницы
     window.onload = function() {
-      renderEmployees();
-      renderDetails();
+      // Сначала пытаемся загрузить сотрудников из внешней БД
+      loadEmployeesFromDatabase();
     };
   </script>
 </body>
