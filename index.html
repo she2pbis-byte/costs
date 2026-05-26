@@ -1,922 +1,986 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Users, 
-  Calendar, 
-  Plus, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  DollarSign, 
-  FileText, 
-  UserPlus, 
-  Trash2, 
-  Edit2, 
-  ArrowLeft,
-  ChevronRight,
-  TrendingUp,
-  AlertCircle,
-  Search,
-  Check,
-  X
-} from 'lucide-react';
-
-// Начальные демонстрационные данные на русском языке
-const INITIAL_EMPLOYEES = [
-  { id: '1', name: 'Александр Иванов', role: 'Старший бариста', phone: '+7 (911) 123-45-67' },
-  { id: '2', name: 'Мария Смирнова', role: 'Администратор', phone: '+7 (921) 987-65-43' },
-  { id: '3', name: 'Дмитрий Петров', role: 'Повар', phone: '+7 (931) 555-01-23' }
-];
-
-const INITIAL_SHIFTS = [
-  {
-    id: 's1',
-    employeeId: '1',
-    startTime: '2026-05-25T08:00',
-    endTime: '2026-05-25T18:00', // 10 часов
-    hasReceipt: true,
-    isPaid: true,
-    rate: 350, // ставка 350 руб/час
-  },
-  {
-    id: 's2',
-    employeeId: '1',
-    startTime: '2026-05-26T08:00',
-    endTime: '2026-05-26T17:00', // 9 часов
-    hasReceipt: false,
-    isPaid: false,
-    rate: 350,
-  },
-  {
-    id: 's3',
-    employeeId: '2',
-    startTime: '2026-05-25T09:00',
-    endTime: '2026-05-25T21:00', // 12 часов
-    hasReceipt: true,
-    isPaid: true,
-    rate: 400,
-  },
-  {
-    id: 's4',
-    employeeId: '3',
-    startTime: '2026-05-25T10:00',
-    endTime: '2026-05-25T22:00', // 12 часов
-    hasReceipt: false,
-    isPaid: false,
-    rate: 300,
-  }
-];
-
-export default function App() {
-  // Состояния приложения
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
-  const [shifts, setShifts] = useState(INITIAL_SHIFTS);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Управление модальными окнами
-  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null); // null для создания нового
-  const [employeeForm, setEmployeeForm] = useState({ name: '', role: '', phone: '' });
-
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
-  const [selectedShift, setSelectedShift] = useState(null); // Выбранная смена для просмотра/редактирования
-  const [shiftForm, setShiftForm] = useState({
-    id: '',
-    employeeId: '',
-    startTime: '',
-    endTime: '',
-    hasReceipt: false,
-    isPaid: false,
-    rate: 0
-  });
-
-  // Вспомогательная функция для подсчета заработанных денег
-  const calculateEarnings = (start, end, rate) => {
-    if (!start || !end || isNaN(rate)) return 0;
-    const startTime = new Date(start);
-    const endTime = new Date(end);
-    const diffMs = endTime - startTime;
-    if (diffMs <= 0) return 0;
-    const hours = diffMs / (1000 * 60 * 60);
-    return Math.round(hours * rate);
-  };
-
-  // Вспомогательная функция для подсчета часов
-  const calculateHours = (start, end) => {
-    if (!start || !end) return 0;
-    const startTime = new Date(start);
-    const endTime = new Date(end);
-    const diffMs = endTime - startTime;
-    if (diffMs <= 0) return 0;
-    return parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
-  };
-
-  // Форматирование даты для вывода
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
-  // Форматирование времени для вывода
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Фильтрация сотрудников по поиску
-  const filteredEmployees = useMemo(() => {
-    return employees.filter(emp => 
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.role.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [employees, searchTerm]);
-
-  // Выбранный сотрудник в данный момент
-  const currentEmployee = useMemo(() => {
-    return employees.find(emp => emp.id === selectedEmployeeId);
-  }, [employees, selectedEmployeeId]);
-
-  // Смены выбранного сотрудника
-  const currentEmployeeShifts = useMemo(() => {
-    if (!selectedEmployeeId) return [];
-    return shifts
-      .filter(shift => shift.employeeId === selectedEmployeeId)
-      .sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-  }, [shifts, selectedEmployeeId]);
-
-  // Общая аналитика (для дашборда или детальной страницы)
-  const stats = useMemo(() => {
-    const activeShifts = selectedEmployeeId ? currentEmployeeShifts : shifts;
-    
-    let totalEarned = 0;
-    let paidAmount = 0;
-    let unpaidAmount = 0;
-    let totalHours = 0;
-
-    activeShifts.forEach(shift => {
-      const hours = calculateHours(shift.startTime, shift.endTime);
-      const earned = Math.round(hours * shift.rate);
-      totalEarned += earned;
-      totalHours += hours;
-      if (shift.isPaid) {
-        paidAmount += earned;
-      } else {
-        unpaidAmount += earned;
-      }
-    });
-
-    return {
-      totalEarned,
-      paidAmount,
-      unpaidAmount,
-      totalHours: parseFloat(totalHours.toFixed(1)),
-      shiftsCount: activeShifts.length
-    };
-  }, [shifts, selectedEmployeeId, currentEmployeeShifts]);
-
-  // Открытие модалки сотрудника
-  const openEmployeeModal = (employee = null) => {
-    if (employee) {
-      setEditingEmployee(employee);
-      setEmployeeForm({ name: employee.name, role: employee.role, phone: employee.phone });
-    } else {
-      setEditingEmployee(null);
-      setEmployeeForm({ name: '', role: '', phone: '' });
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StaffShift Pro — Учет смен и оплаты персонала</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
     }
-    setIsEmployeeModalOpen(true);
-  };
-
-  // Сохранение сотрудника
-  const saveEmployee = (e) => {
-    e.preventDefault();
-    if (!employeeForm.name.trim()) return;
-
-    if (editingEmployee) {
-      // Редактирование
-      setEmployees(employees.map(emp => 
-        emp.id === editingEmployee.id ? { ...emp, ...employeeForm } : emp
-      ));
-    } else {
-      // Создание нового
-      const newEmp = {
-        id: Date.now().toString(),
-        ...employeeForm
-      };
-      setEmployees([...employees, newEmp]);
-      setSelectedEmployeeId(newEmp.id); // сразу выбираем нового
+    /* Стилизация скроллбара */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
     }
-    setIsEmployeeModalOpen(false);
-  };
-
-  // Удаление сотрудника и его смен
-  const deleteEmployee = (id) => {
-    if (window.confirm('Вы уверены, что хотите удалить сотрудника? Все его смены также будут удалены.')) {
-      setEmployees(employees.filter(emp => emp.id !== id));
-      setShifts(shifts.filter(s => s.employeeId !== id));
-      if (selectedEmployeeId === id) {
-        setSelectedEmployeeId(null);
-      }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
     }
-  };
-
-  // Открытие формы создания новой смены
-  const openNewShiftModal = () => {
-    if (!selectedEmployeeId) return;
-    const now = new Date();
-    // Округлим до ровного часа
-    now.setMinutes(0, 0, 0);
-    const startIso = now.toISOString().slice(0, 16);
-    const endIso = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16); // +8 часов по умолчанию
-
-    // Найдем последнюю ставку сотрудника для автозаполнения
-    const lastShift = currentEmployeeShifts[0];
-    const defaultRate = lastShift ? lastShift.rate : 300;
-
-    setSelectedShift(null);
-    setShiftForm({
-      id: '',
-      employeeId: selectedEmployeeId,
-      startTime: startIso,
-      endTime: endIso,
-      hasReceipt: false,
-      isPaid: false,
-      rate: defaultRate
-    });
-    setIsShiftModalOpen(true);
-  };
-
-  // Клик по существующей смене для просмотра деталей
-  const handleShiftClick = (shift) => {
-    setSelectedShift(shift);
-    setShiftForm({
-      id: shift.id,
-      employeeId: shift.employeeId,
-      startTime: shift.startTime,
-      endTime: shift.endTime,
-      hasReceipt: shift.hasReceipt,
-      isPaid: shift.isPaid,
-      rate: shift.rate
-    });
-    setIsShiftModalOpen(true);
-  };
-
-  // Сохранение/Обновление смены
-  const saveShift = (e) => {
-    e.preventDefault();
-    if (new Date(shiftForm.endTime) <= new Date(shiftForm.startTime)) {
-      alert('Время конца смены должно быть позже времени начала!');
-      return;
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
     }
-
-    if (selectedShift) {
-      // Обновление
-      setShifts(shifts.map(s => s.id === selectedShift.id ? { ...s, ...shiftForm } : s));
-    } else {
-      // Создание новой смены
-      const newShift = {
-        ...shiftForm,
-        id: 'shift_' + Date.now()
-      };
-      setShifts([...shifts, newShift]);
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
     }
-    setIsShiftModalOpen(false);
-  };
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
 
-  // Удаление смены
-  const deleteShift = (shiftId) => {
-    if (window.confirm('Вы действительно хотите удалить эту смену?')) {
-      setShifts(shifts.filter(s => s.id !== shiftId));
-      setIsShiftModalOpen(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+  <!-- Шапка приложения -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
+          <i data-lucide="calendar" class="h-6 w-6"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900 tracking-tight">StaffShift Pro</h1>
+          <p class="text-xs text-slate-500">Учет рабочего времени и выплат</p>
+        </div>
+      </div>
       
-      {/* Шапка приложения */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">StaffShift Pro</h1>
-              <p className="text-xs text-slate-500">Учет рабочего времени и выплат</p>
-            </div>
+      <div>
+        <button
+          onclick="openEmployeeModal()"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 shadow-sm flex items-center space-x-2"
+        >
+          <i data-lucide="user-plus" class="h-4 w-4"></i>
+          <span class="hidden sm:inline">Новый сотрудник</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Основной контент -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
+    
+    <!-- ЛЕВАЯ КОЛОНКА: Список персонала -->
+    <section id="employees-section" class="w-full md:w-80 flex-shrink-0 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+        <h2 class="text-lg font-bold text-slate-950 flex items-center justify-between">
+          <span>Сотрудники</span>
+          <span id="employee-count-badge" class="bg-slate-200 text-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+            0
+          </span>
+        </h2>
+        
+        <!-- Поиск -->
+        <div class="mt-3 relative">
+          <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
+          <input
+            type="text"
+            id="search-input"
+            oninput="handleSearch(this.value)"
+            placeholder="Поиск сотрудника..."
+            class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          />
+        </div>
+      </div>
+
+      <!-- Список сотрудников в DOM -->
+      <div id="employees-list" class="flex-1 overflow-y-auto max-h-[calc(100vh-280px)] divide-y divide-slate-100">
+        <!-- Генерируется динамически -->
+      </div>
+    </section>
+
+    <!-- ПРАВАЯ КОЛОНКА: Смены выбранного сотрудника или пустой экран -->
+    <section id="details-section" class="flex-1 flex flex-col">
+      <!-- Контент обновляется динамически через JS (showDashboard() или showEmployeeDetails()) -->
+    </section>
+
+  </main>
+
+  <!-- МОДАЛЬНОЕ ОКНО: СОТРУДНИК -->
+  <div id="employee-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
+      <div class="bg-slate-50 px-6 py-4 border-b border-slate-150 flex items-center justify-between">
+        <h3 id="employee-modal-title" class="font-bold text-slate-900 text-lg">Добавить сотрудника</h3>
+        <button onclick="closeEmployeeModal()" class="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </div>
+      
+      <form id="employee-form" onsubmit="saveEmployee(event)" class="p-6 space-y-4">
+        <input type="hidden" id="edit-employee-id">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">ФИО Сотрудника *</label>
+          <input
+            type="text"
+            id="emp-name"
+            required
+            placeholder="Иванов Иван Иванович"
+            class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Должность / Роль</label>
+          <input
+            type="text"
+            id="emp-role"
+            placeholder="Например: Старший бариста"
+            class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Номер телефона</label>
+          <input
+            type="text"
+            id="emp-phone"
+            placeholder="+7 (999) 999-99-99"
+            class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+          />
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onclick="closeEmployeeModal()"
+            class="px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
+          >
+            Сохранить
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ДЕТАЛИ / ДОБАВЛЕНИЕ СМЕНЫ -->
+  <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-150">
+      
+      <!-- Хедер модалки -->
+      <div class="bg-slate-50 px-6 py-4 border-b border-slate-150 flex items-center justify-between">
+        <div>
+          <h3 id="shift-modal-title" class="font-extrabold text-slate-900 text-lg">Параметры смены</h3>
+          <p id="shift-modal-subtitle" class="text-xs text-indigo-600 font-semibold mt-0.5">Сотрудник</p>
+        </div>
+        <button onclick="closeShiftModal()" class="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-xl transition-colors">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </div>
+      
+      <form id="shift-form" onsubmit="saveShift(event)" class="p-6 space-y-5">
+        <input type="hidden" id="shift-id">
+        
+        <!-- Блок с Датами смен -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- 1. НАЧАЛО СМЕНЫ -->
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              1. Начало смены
+            </label>
+            <input
+              type="datetime-local"
+              id="shift-start"
+              required
+              oninput="recalculateShiftMetrics()"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+            />
           </div>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => openEmployeeModal()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-indigo-100 flex items-center space-x-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Новый сотрудник</span>
-            </button>
+
+          <!-- 2. КОНЕЦ СМЕНЫ -->
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              2. Конец смены
+            </label>
+            <input
+              type="datetime-local"
+              id="shift-end"
+              required
+              oninput="recalculateShiftMetrics()"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+            />
           </div>
         </div>
-      </header>
 
-      {/* Основной контент */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
-        
-        {/* ЛЕВАЯ КОЛОНКА: Список персонала */}
-        <section className={`w-full md:w-80 flex-shrink-0 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden ${selectedEmployeeId ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="text-lg font-bold text-slate-950 flex items-center justify-between">
-              <span>Сотрудники</span>
-              <span className="bg-slate-200 text-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">
-                {employees.length}
+        <!-- Расчет времени по факту изменения даты -->
+        <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 flex items-center justify-between">
+          <span class="text-xs text-indigo-950 font-bold uppercase tracking-wider">Отработано по факту:</span>
+          <span id="shift-calculated-hours" class="text-sm font-black text-indigo-700">0 ч.</span>
+        </div>
+
+        <!-- Поля статусов -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          
+          <!-- 3. РАСПИСКА О ПОЛУЧЕНИИ ДЕНЕГ -->
+          <div class="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-3">
+            <div>
+              <span class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                3. Есть расписка?
               </span>
-            </h2>
+              <p class="text-xs text-slate-500">Наличие бумажной или цифровой подписи за деньги</p>
+            </div>
             
-            {/* Поиск */}
-            <div className="mt-3 relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <div class="flex items-center space-x-2">
+              <button
+                type="button"
+                id="btn-receipt-yes"
+                onclick="setReceiptState(true)"
+                class="flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1"
+              >
+                <i data-lucide="check" class="h-3.5 w-3.5"></i>
+                <span>Да</span>
+              </button>
+              <button
+                type="button"
+                id="btn-receipt-no"
+                onclick="setReceiptState(false)"
+                class="flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1"
+              >
+                <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                <span>Нет</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. СТАТУС ОПЛАТЫ -->
+          <div class="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-3">
+            <div>
+              <span class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                4. Оплата произведена?
+              </span>
+              <p class="text-xs text-slate-500">Статус закрытия взаиморасчетов за смену</p>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button
+                type="button"
+                id="btn-paid-yes"
+                onclick="setPaidState(true)"
+                class="flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1"
+              >
+                <i data-lucide="check" class="h-3.5 w-3.5"></i>
+                <span>Оплачено</span>
+              </button>
+              <button
+                type="button"
+                id="btn-paid-no"
+                onclick="setPaidState(false)"
+                class="flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1"
+              >
+                <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                <span>Не оплачено</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Ставка и заработанные деньги -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          
+          <!-- 5. СТАВКА (РУЧНОЙ ВВОД) -->
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              5. Почасовая ставка (₽/час)
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span class="text-slate-400 text-sm font-semibold">₽</span>
+              </div>
               <input
-                type="text"
-                placeholder="Поиск по имени или роли..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                type="number"
+                id="shift-rate"
+                min="0"
+                required
+                oninput="recalculateShiftMetrics()"
+                placeholder="0"
+                class="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800 text-sm"
               />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)] divide-y divide-slate-100">
-            {filteredEmployees.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                <Users className="h-10 w-10 mx-auto mb-2 opacity-50 text-slate-300" />
-                <p className="text-sm">Сотрудники не найдены</p>
-              </div>
-            ) : (
-              filteredEmployees.map(emp => {
-                const isSelected = emp.id === selectedEmployeeId;
-                // Количество невыплаченных смен для бэджа
-                const unpaidShiftsCount = shifts.filter(s => s.employeeId === emp.id && !s.isPaid).length;
-
-                return (
-                  <div
-                    key={emp.id}
-                    onClick={() => setSelectedEmployeeId(emp.id)}
-                    className={`p-4 flex items-center justify-between cursor-pointer transition-all duration-150 group ${
-                      isSelected 
-                        ? 'bg-indigo-50/70 border-l-4 border-indigo-600' 
-                        : 'hover:bg-slate-50/80 border-l-4 border-transparent'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <p className={`font-semibold text-sm truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
-                          {emp.name}
-                        </p>
-                        {unpaidShiftsCount > 0 && (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-md font-bold" title="Есть неоплаченные смены">
-                            {unpaidShiftsCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5 truncate">{emp.role}</p>
-                    </div>
-                    
-                    <div className="flex items-center space-x-1 pl-2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEmployeeModal(emp);
-                        }}
-                        className="p-1 hover:bg-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg transition-colors"
-                        title="Редактировать сотрудника"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteEmployee(emp.id);
-                        }}
-                        className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                        title="Удалить сотрудника"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-slate-400 hidden md:block" />
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <!-- 6. КОЛИЧЕСТВО ЗАРАБОТАННЫХ ДЕНЕГ -->
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              6. Итого заработано
+            </label>
+            <div class="bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between h-[42px]">
+              <span class="text-xs text-slate-500">Авторасчет:</span>
+              <span id="shift-calculated-earnings" class="text-base font-extrabold text-slate-900">0 ₽</span>
+            </div>
           </div>
-        </section>
 
-        {/* ПРАВАЯ КОЛОНКА: Смены выбранного сотрудника или общий дашборд */}
-        <section className={`flex-1 flex flex-col ${!selectedEmployeeId ? 'hidden md:flex' : 'flex'}`}>
-          {selectedEmployeeId && currentEmployee ? (
-            <div className="flex flex-col h-full space-y-6">
-              
-              {/* Хедер выбранного сотрудника */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => setSelectedEmployeeId(null)}
-                      className="md:hidden p-2 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors"
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </button>
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900">{currentEmployee.name}</h2>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-500">
-                        <span className="font-medium text-indigo-600">{currentEmployee.role}</span>
-                        <span>•</span>
-                        <span>{currentEmployee.phone || 'Телефон не указан'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={openNewShiftModal}
-                    className="self-start sm:self-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold tracking-wide shadow-sm hover:shadow-indigo-100 flex items-center space-x-2 transition-all"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Добавить смену</span>
-                  </button>
-                </div>
-
-                {/* Быстрая статистика сотрудника */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
-                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Всего заработано</p>
-                    <p className="text-lg font-bold text-slate-900 mt-1">{stats.totalEarned.toLocaleString('ru-RU')} ₽</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{stats.shiftsCount} смен(ы)</p>
-                  </div>
-                  <div className="bg-emerald-50/50 rounded-xl p-3.5 border border-emerald-100">
-                    <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Оплачено</p>
-                    <p className="text-lg font-bold text-emerald-800 mt-1">{stats.paidAmount.toLocaleString('ru-RU')} ₽</p>
-                    <div className="flex items-center text-[10px] text-emerald-600 mt-0.5 font-medium">
-                      <CheckCircle className="h-3 w-3 mr-1" /> Выплачено полностью
-                    </div>
-                  </div>
-                  <div className="bg-amber-50/50 rounded-xl p-3.5 border border-amber-100">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">К выплате</p>
-                    <p className="text-lg font-bold text-amber-800 mt-1">{stats.unpaidAmount.toLocaleString('ru-RU')} ₽</p>
-                    <div className="flex items-center text-[10px] text-amber-600 mt-0.5 font-medium">
-                      <AlertCircle className="h-3 w-3 mr-1" /> Ожидает оплаты
-                    </div>
-                  </div>
-                  <div className="bg-indigo-50/30 rounded-xl p-3.5 border border-indigo-100/50">
-                    <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Отработано часов</p>
-                    <p className="text-lg font-bold text-indigo-900 mt-1">{stats.totalHours} ч.</p>
-                    <p className="text-[10px] text-indigo-500 mt-0.5">В среднем {(stats.shiftsCount > 0 ? (stats.totalHours / stats.shiftsCount).toFixed(1) : 0)} ч./смена</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Список смен */}
-              <div className="bg-white border border-slate-200 rounded-2xl flex-1 flex flex-col overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-slate-400" />
-                    <span>История смен</span>
-                  </h3>
-                  <span className="text-xs text-slate-500">Нажмите на смену для просмотра и изменения деталей</span>
-                </div>
-
-                <div className="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[calc(100vh-420px)]">
-                  {currentEmployeeShifts.length === 0 ? (
-                    <div className="p-12 text-center text-slate-400">
-                      <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30 text-slate-400" />
-                      <p className="text-sm font-medium">Смен пока нет</p>
-                      <p className="text-xs text-slate-400 mt-1">Добавьте первую смену сотрудника с помощью кнопки выше</p>
-                    </div>
-                  ) : (
-                    currentEmployeeShifts.map(shift => {
-                      const hours = calculateHours(shift.startTime, shift.endTime);
-                      const earned = calculateEarnings(shift.startTime, shift.endTime, shift.rate);
-                      
-                      return (
-                        <div
-                          key={shift.id}
-                          onClick={() => handleShiftClick(shift)}
-                          className="p-4 hover:bg-slate-50/80 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
-                        >
-                          <div className="flex items-start space-x-3.5">
-                            {/* Левый значок статуса оплаты */}
-                            <div className={`mt-0.5 p-2 rounded-xl flex-shrink-0 ${
-                              shift.isPaid 
-                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-                                : 'bg-amber-50 text-amber-600 border border-amber-100'
-                            }`}>
-                              {shift.isPaid ? <CheckCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                            </div>
-
-                            <div className="space-y-1">
-                              {/* Дата и время */}
-                              <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-slate-900">{formatDate(shift.startTime)}</span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-sm text-slate-600 font-medium">
-                                  {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
-                                </span>
-                              </div>
-                              
-                              {/* Мета-информация */}
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                                <span className="flex items-center text-indigo-600 font-medium">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {hours} ч.
-                                </span>
-                                <span>•</span>
-                                <span className="flex items-center">
-                                  Ставка: {shift.rate} ₽/ч
-                                </span>
-                                <span>•</span>
-                                <span className={`flex items-center ${shift.hasReceipt ? 'text-emerald-700' : 'text-slate-400'}`}>
-                                  <FileText className="h-3.5 w-3.5 mr-1" />
-                                  {shift.hasReceipt ? 'Расписка есть' : 'Нет расписки'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Сумма и статус (Правая часть) */}
-                          <div className="flex sm:flex-col items-between sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                            <span className="text-lg font-extrabold text-slate-900">
-                              {earned.toLocaleString('ru-RU')} ₽
-                            </span>
-                            <div className="mt-1 flex items-center space-x-2">
-                              {/* Статус оплаты плашка */}
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                shift.isPaid 
-                                  ? 'bg-emerald-100 text-emerald-800' 
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {shift.isPaid ? 'Оплачено' : 'Не оплачено'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-            </div>
-          ) : (
-            /* Общий дашборд при отсутствии выбранного сотрудника */
-            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center flex-1 flex flex-col items-center justify-center shadow-sm">
-              <div className="bg-indigo-50 p-4 rounded-full text-indigo-600 mb-4">
-                <Users className="h-12 w-12" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Добро пожаловать в панель управления</h3>
-              <p className="text-slate-500 text-sm max-w-md mx-auto mb-8">
-                Выберите сотрудника в левом меню для просмотра его смен, редактирования почасовой ставки, отметки о расписках и выплатах.
-              </p>
-
-              {/* Общая статистика компании */}
-              <div className="w-full max-w-2xl border border-slate-100 rounded-2xl bg-slate-50/50 p-6">
-                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 text-left">Общая статистика</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-                  <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
-                    <span className="text-xs text-slate-400 font-medium">Всего выплачено</span>
-                    <p className="text-xl font-extrabold text-emerald-600 mt-1">{stats.paidAmount.toLocaleString('ru-RU')} ₽</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
-                    <span className="text-xs text-slate-400 font-medium">К выплате (долг)</span>
-                    <p className="text-xl font-extrabold text-amber-600 mt-1">{stats.unpaidAmount.toLocaleString('ru-RU')} ₽</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
-                    <span className="text-xs text-slate-400 font-medium">Всего смен</span>
-                    <p className="text-xl font-extrabold text-slate-800 mt-1">{shifts.length} смен</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-      </main>
-
-      {/* МОДАЛЬНОЕ ОКНО: ДОБАВЛЕНИЕ / РЕДАКТИРОВАНИЕ СОТРУДНИКА */}
-      {isEmployeeModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-150 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">
-                {editingEmployee ? 'Редактировать сотрудника' : 'Добавить нового сотрудника'}
-              </h3>
-              <button 
-                onClick={() => setIsEmployeeModalOpen(false)}
-                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={saveEmployee} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">ФИО Сотрудника *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Иванов Иван Иванович"
-                  value={employeeForm.name}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Должность / Роль</label>
-                <input
-                  type="text"
-                  placeholder="Например: Кассир"
-                  value={employeeForm.role}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Номер телефона</label>
-                <input
-                  type="text"
-                  placeholder="+7 (999) 999-99-99"
-                  value={employeeForm.phone}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsEmployeeModalOpen(false)}
-                  className="px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
-                >
-                  {editingEmployee ? 'Сохранить изменения' : 'Создать'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
-      )}
 
-      {/* МОДАЛЬНОЕ ОКНО: ДЕТАЛИ / РЕДАКТИРОВАНИЕ СМЕНЫ */}
-      {isShiftModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-150">
-            
-            {/* Хедер модалки */}
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-150 flex items-center justify-between">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-lg">
-                  {selectedShift ? 'Детали рабочей смены' : 'Добавить новую смену'}
-                </h3>
-                {selectedEmployeeId && (
-                  <p className="text-xs text-indigo-600 font-semibold mt-0.5">{currentEmployee.name}</p>
-                )}
-              </div>
-              <button 
-                onClick={() => setIsShiftModalOpen(false)}
-                className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-xl transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={saveShift} className="p-6 space-y-5">
-              
-              {/* Блок с Датами смен */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 1. НАЧАЛО СМЕНЫ */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    1. Начало смены
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="datetime-local"
-                      required
-                      value={shiftForm.startTime}
-                      onChange={(e) => setShiftForm({ ...shiftForm, startTime: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. КОНЕЦ СМЕНЫ */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    2. Конец смены
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="datetime-local"
-                      required
-                      value={shiftForm.endTime}
-                      onChange={(e) => setShiftForm({ ...shiftForm, endTime: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Расчет времени по факту изменения даты */}
-              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 flex items-center justify-between">
-                <span className="text-xs text-indigo-950 font-bold uppercase tracking-wider">Расчетное время:</span>
-                <span className="text-sm font-black text-indigo-700">
-                  {calculateHours(shiftForm.startTime, shiftForm.endTime)} ч.
-                </span>
-              </div>
-
-              {/* Поля статусов */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                
-                {/* 3. РАСПИСКА О ПОЛУЧЕНИИ ДЕНЕГ */}
-                <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      3. Расписка о получении
-                    </span>
-                    <p className="text-xs text-slate-500">Подтверждает личную роспись за полученные деньги</p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setShiftForm({ ...shiftForm, hasReceipt: true })}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1 ${
-                        shiftForm.hasReceipt 
-                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-100' 
-                          : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>Есть</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShiftForm({ ...shiftForm, hasReceipt: false })}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1 ${
-                        !shiftForm.hasReceipt 
-                          ? 'bg-slate-700 border-slate-700 text-white shadow-sm' 
-                          : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      <span>Нет</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. СТАТУС ОПЛАТЫ */}
-                <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      4. Статус оплаты
-                    </span>
-                    <p className="text-xs text-slate-500">Отметка о выдаче наличных/переводе по данной смене</p>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setShiftForm({ ...shiftForm, isPaid: true })}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1 ${
-                        shiftForm.isPaid 
-                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-100' 
-                          : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>Оплачено</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShiftForm({ ...shiftForm, isPaid: false })}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center space-x-1 ${
-                        !shiftForm.isPaid 
-                          ? 'bg-amber-600 border-amber-600 text-white shadow-sm shadow-amber-100' 
-                          : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      <span>Не оплачено</span>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Ставка и заработанные деньги */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                
-                {/* 5. СТАВКА (РУЧНОЙ ВВОД) */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    5. Почасовая ставка (₽/час)
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-slate-400 text-sm font-semibold">₽</span>
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      required
-                      placeholder="0"
-                      value={shiftForm.rate}
-                      onChange={(e) => setShiftForm({ ...shiftForm, rate: parseInt(e.target.value) || 0 })}
-                      className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800 text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* 6. КОЛИЧЕСТВО ЗАРАБОТАННЫХ ДЕНЕГ */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    6. Заработано за смену
-                  </label>
-                  <div className="bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between h-[42px]">
-                    <span className="text-xs text-slate-500">Авторасчет:</span>
-                    <span className="text-base font-extrabold text-slate-900">
-                      {calculateEarnings(shiftForm.startTime, shiftForm.endTime, shiftForm.rate).toLocaleString('ru-RU')} ₽
-                    </span>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Уведомление о несоответствии оплаты и расписки */}
-              {!shiftForm.isPaid && shiftForm.hasReceipt && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start space-x-2 text-amber-800 text-xs">
-                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p>
-                    <strong>Внимание:</strong> Смена отмечена как неоплаченная, однако стоит галочка наличия расписки о получении денег. Проверьте правильность данных.
-                  </p>
-                </div>
-              )}
-
-              {/* Кнопки действий внизу модалки */}
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-4 border-t border-slate-150">
-                <div>
-                  {selectedShift && (
-                    <button
-                      type="button"
-                      onClick={() => deleteShift(selectedShift.id)}
-                      className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center space-x-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Удалить смену</span>
-                    </button>
-                  )}
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsShiftModalOpen(false)}
-                    className="flex-1 sm:flex-initial px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md hover:shadow-indigo-100"
-                  >
-                    {selectedShift ? 'Сохранить изменения' : 'Создать смену'}
-                  </button>
-                </div>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Футер */}
-      <footer className="bg-white border-t border-slate-200 py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500">
-            &copy; 2026 StaffShift Pro. Все права защищены.
+        <!-- Предупреждение о несоответствии оплаты и расписки -->
+        <div id="warning-box" class="bg-amber-50 border border-amber-200 rounded-xl p-3 hidden items-start space-x-2 text-amber-800 text-xs">
+          <i data-lucide="alert-circle" class="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <p>
+            <strong>Внимание:</strong> Установлено наличие расписки при отсутствии оплаты. Пожалуйста, убедитесь в корректности данных.
           </p>
-          <div className="flex items-center space-x-4 text-xs text-indigo-600 font-semibold">
-            <span>Локальный режим работы (In-Memory)</span>
+        </div>
+
+        <!-- Кнопки действий -->
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-4 border-t border-slate-150">
+          <div>
+            <button
+              type="button"
+              id="btn-delete-shift"
+              onclick="deleteCurrentShift()"
+              class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center space-x-2 hidden"
+            >
+              <i data-lucide="trash-2" class="h-4 w-4"></i>
+              <span>Удалить смену</span>
+            </button>
+          </div>
+          
+          <div class="flex space-x-3 w-full sm:w-auto">
+            <button
+              type="button"
+              onclick="closeShiftModal()"
+              class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              class="flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md"
+            >
+              Сохранить
+            </button>
           </div>
         </div>
-      </footer>
 
+      </form>
     </div>
-  );
-}
+  </div>
+
+  <!-- Футер -->
+  <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-slate-500">
+        &copy; 2026 StaffShift Pro. Все права защищены.
+      </p>
+      <div class="flex items-center space-x-4 text-xs text-indigo-600 font-semibold">
+        <span>Интерактивный HTML режим</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- СКРИПТ ПРИЛОЖЕНИЯ -->
+  <script>
+    // Первоначальные демонстрационные данные
+    let employees = [
+      { id: '1', name: 'Александр Иванов', role: 'Старший бариста', phone: '+7 (911) 123-45-67' },
+      { id: '2', name: 'Мария Смирнова', role: 'Администратор', phone: '+7 (921) 987-65-43' },
+      { id: '3', name: 'Дмитрий Петров', role: 'Повар', phone: '+7 (931) 555-01-23' }
+    ];
+
+    let shifts = [
+      { id: 's1', employeeId: '1', startTime: '2026-05-25T08:00', endTime: '2026-05-25T18:00', hasReceipt: true, isPaid: true, rate: 350 },
+      { id: 's2', employeeId: '1', startTime: '2026-05-26T08:00', endTime: '2026-05-26T17:00', hasReceipt: false, isPaid: false, rate: 350 },
+      { id: 's3', employeeId: '2', startTime: '2026-05-25T09:00', endTime: '2026-05-25T21:00', hasReceipt: true, isPaid: true, rate: 400 },
+      { id: 's4', employeeId: '3', startTime: '2026-05-25T10:00', endTime: '2026-05-25T22:00', hasReceipt: false, isPaid: false, rate: 300 }
+    ];
+
+    // Текущие глобальные переменные состояния
+    let selectedEmployeeId = null;
+    let searchTerm = '';
+    
+    // Временные переменные для формы смены
+    let tempReceiptState = false;
+    let tempPaidState = false;
+
+    // Вспомогательные функции
+    function calculateHours(start, end) {
+      if (!start || !end) return 0;
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime - startTime;
+      if (diffMs <= 0) return 0;
+      return parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
+    }
+
+    function calculateEarnings(start, end, rate) {
+      const hours = calculateHours(start, end);
+      return Math.round(hours * (rate || 0));
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function formatTime(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Рендер списка сотрудников (слева)
+    function renderEmployees() {
+      const listContainer = document.getElementById('employees-list');
+      const filtered = employees.filter(emp => 
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.role.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      document.getElementById('employee-count-badge').innerText = filtered.length;
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="p-8 text-center text-slate-400">
+            <i data-lucide="users" class="h-10 w-10 mx-auto mb-2 opacity-50 text-slate-300"></i>
+            <p class="text-sm">Сотрудники не найдены</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(emp => {
+        const isSelected = emp.id === selectedEmployeeId;
+        const unpaidCount = shifts.filter(s => s.employeeId === emp.id && !s.isPaid).length;
+        const badgeHtml = unpaidCount > 0 
+          ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-md font-bold" title="Есть неоплаченные смены">${unpaidCount}</span>` 
+          : '';
+
+        return `
+          <div
+            onclick="selectEmployee('${emp.id}')"
+            class="p-4 flex items-center justify-between cursor-pointer transition-all duration-150 group ${
+              isSelected 
+                ? 'bg-indigo-50/70 border-l-4 border-indigo-600' 
+                : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+            }"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center space-x-2">
+                <p class="font-semibold text-sm truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}">
+                  ${emp.name}
+                </p>
+                ${badgeHtml}
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5 truncate">${emp.role || 'Должность не указана'}</p>
+            </div>
+            
+            <div class="flex items-center space-x-1 pl-2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
+              <button
+                onclick="event.stopPropagation(); editEmployee('${emp.id}')"
+                class="p-1 hover:bg-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg transition-colors"
+                title="Редактировать"
+              >
+                <i data-lucide="edit-2" class="h-3.5 w-3.5"></i>
+              </button>
+              <button
+                onclick="event.stopPropagation(); deleteEmployee('${emp.id}')"
+                class="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                title="Удалить"
+              >
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+              </button>
+              <i data-lucide="chevron-right" class="h-4 w-4 text-slate-400 hidden md:block"></i>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // Выбор сотрудника
+    function selectEmployee(id) {
+      selectedEmployeeId = id;
+      renderEmployees();
+      renderDetails();
+    }
+
+    // Отрисовка деталей (смен и аналитики) выбранного сотрудника
+    function renderDetails() {
+      const container = document.getElementById('details-section');
+      
+      if (!selectedEmployeeId) {
+        // Общий дашборд компании
+        let totalPaid = 0;
+        let totalUnpaid = 0;
+        shifts.forEach(s => {
+          const earned = calculateEarnings(s.startTime, s.endTime, s.rate);
+          if (s.isPaid) totalPaid += earned;
+          else totalUnpaid += earned;
+        });
+
+        container.innerHTML = `
+          <div class="bg-white border border-slate-200 rounded-2xl p-8 text-center flex-1 flex flex-col items-center justify-center shadow-sm">
+            <div class="bg-indigo-50 p-4 rounded-full text-indigo-600 mb-4">
+              <i data-lucide="users" class="h-12 w-12"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Панель управления персоналом</h3>
+            <p class="text-slate-500 text-sm max-w-md mx-auto mb-8">
+              Выберите сотрудника в левой панели для просмотра его смен, контроля почасовой ставки, отметки о расписках и выплатах.
+            </p>
+
+            <div class="w-full max-w-2xl border border-slate-100 rounded-2xl bg-slate-50/50 p-6">
+              <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 text-left">Общая статистика компании</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
+                  <span class="text-xs text-slate-400 font-medium">Всего выплачено</span>
+                  <p class="text-xl font-extrabold text-emerald-600 mt-1">${totalPaid.toLocaleString('ru-RU')} ₽</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
+                  <span class="text-xs text-slate-400 font-medium">К выплате (долг)</span>
+                  <p class="text-xl font-extrabold text-amber-600 mt-1">${totalUnpaid.toLocaleString('ru-RU')} ₽</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-100">
+                  <span class="text-xs text-slate-400 font-medium">Всего смен</span>
+                  <p class="text-xl font-extrabold text-slate-800 mt-1">${shifts.length} смен</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      // Информация по выбранному сотруднику
+      const employee = employees.find(e => e.id === selectedEmployeeId);
+      if (!employee) {
+        selectedEmployeeId = null;
+        renderDetails();
+        return;
+      }
+
+      const empShifts = shifts
+        .filter(s => s.employeeId === employee.id)
+        .sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+      // Расчет статистики
+      let totalEarned = 0;
+      let paidAmount = 0;
+      let unpaidAmount = 0;
+      let totalHours = 0;
+
+      empShifts.forEach(s => {
+        const hours = calculateHours(s.startTime, s.endTime);
+        const earned = Math.round(hours * s.rate);
+        totalEarned += earned;
+        totalHours += hours;
+        if (s.isPaid) paidAmount += earned;
+        else unpaidAmount += earned;
+      });
+
+      // Рендер деталей
+      container.innerHTML = `
+        <div class="flex flex-col h-full space-y-6">
+          
+          <!-- Шапка карточки сотрудника -->
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div class="flex items-center space-x-4">
+                <button
+                  onclick="selectEmployee(null)"
+                  class="md:hidden p-2 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors"
+                >
+                  <i data-lucide="arrow-left" class="h-5 w-5"></i>
+                </button>
+                <div>
+                  <h2 class="text-xl font-bold text-slate-900">${employee.name}</h2>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-500">
+                    <span class="font-medium text-indigo-600">${employee.role || 'Должность не указана'}</span>
+                    <span>•</span>
+                    <span>${employee.phone || 'Телефон не указан'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onclick="openShiftModal()"
+                class="self-start sm:self-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold tracking-wide shadow-sm flex items-center space-x-2 transition-all"
+              >
+                <i data-lucide="plus" class="h-4 w-4"></i>
+                <span>Добавить смену</span>
+              </button>
+            </div>
+
+            <!-- Персональные показатели -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+              <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Всего заработано</p>
+                <p class="text-lg font-bold text-slate-900 mt-1">${totalEarned.toLocaleString('ru-RU')} ₽</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${empShifts.length} смен(ы)</p>
+              </div>
+              <div class="bg-emerald-50/50 rounded-xl p-3.5 border border-emerald-100">
+                <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Оплачено</p>
+                <p class="text-lg font-bold text-emerald-800 mt-1">${paidAmount.toLocaleString('ru-RU')} ₽</p>
+                <div class="flex items-center text-[10px] text-emerald-600 mt-0.5 font-medium">
+                  <i data-lucide="check-circle-2" class="h-3 w-3 mr-1"></i> Выплачено полностью
+                </div>
+              </div>
+              <div class="bg-amber-50/50 rounded-xl p-3.5 border border-amber-100">
+                <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider">К выплате</p>
+                <p class="text-lg font-bold text-amber-800 mt-1">${unpaidAmount.toLocaleString('ru-RU')} ₽</p>
+                <div class="flex items-center text-[10px] text-amber-600 mt-0.5 font-medium">
+                  <i data-lucide="alert-circle" class="h-3 w-3 mr-1"></i> Ожидает выплаты
+                </div>
+              </div>
+              <div class="bg-indigo-50/30 rounded-xl p-3.5 border border-indigo-100/50">
+                <p class="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Отработано часов</p>
+                <p class="text-lg font-bold text-indigo-900 mt-1">${parseFloat(totalHours.toFixed(1))} ч.</p>
+                <p class="text-[10px] text-indigo-500 mt-0.5">Средняя: ${(empShifts.length > 0 ? (totalHours / empShifts.length).toFixed(1) : 0)} ч./смену</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Справочник истории смен -->
+          <div class="bg-white border border-slate-200 rounded-2xl flex-1 flex flex-col overflow-hidden shadow-sm">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <h3 class="font-bold text-slate-900 flex items-center space-x-2">
+                <i data-lucide="clock" class="h-4 w-4 text-slate-400"></i>
+                <span>История смен сотрудника</span>
+              </h3>
+              <span class="text-xs text-slate-500">Нажмите на смену для управления</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[calc(100vh-420px)]">
+              ${empShifts.length === 0 ? `
+                <div class="p-12 text-center text-slate-400">
+                  <i data-lucide="calendar" class="h-12 w-12 mx-auto mb-3 opacity-30 text-slate-400"></i>
+                  <p class="text-sm font-medium">Смен пока нет</p>
+                  <p class="text-xs text-slate-400 mt-1">Добавьте первую смену сотрудника с помощью кнопки выше</p>
+                </div>
+              ` : empShifts.map(s => {
+                const hours = calculateHours(s.startTime, s.endTime);
+                const earned = calculateEarnings(s.startTime, s.endTime, s.rate);
+                
+                return `
+                  <div
+                    onclick="openShiftModal('${s.id}')"
+                    class="p-4 hover:bg-slate-50/80 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div class="flex items-start space-x-3.5">
+                      <div class="mt-0.5 p-2 rounded-xl flex-shrink-0 ${
+                        s.isPaid 
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                          : 'bg-amber-50 text-amber-600 border border-amber-100'
+                      }">
+                        <i data-lucide="${s.isPaid ? 'check-circle' : 'clock'}" class="h-5 w-5"></i>
+                      </div>
+
+                      <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                          <span class="font-semibold text-slate-900">${formatDate(s.startTime)}</span>
+                          <span class="text-slate-300">•</span>
+                          <span class="text-sm text-slate-600 font-medium">
+                            ${formatTime(s.startTime)} – ${formatTime(s.endTime)}
+                          </span>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span class="flex items-center text-indigo-600 font-medium">
+                            <i data-lucide="clock" class="h-3 w-3 mr-1"></i>
+                            ${hours} ч.
+                          </span>
+                          <span>•</span>
+                          <span>Ставка: ${s.rate} ₽/ч</span>
+                          <span>•</span>
+                          <span class="flex items-center ${s.hasReceipt ? 'text-emerald-700 font-medium' : 'text-slate-400'}">
+                            <i data-lucide="file-text" class="h-3.5 w-3.5 mr-1"></i>
+                            ${s.hasReceipt ? 'Расписка есть' : 'Нет расписки'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex sm:flex-col items-between sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                      <span class="text-lg font-extrabold text-slate-900">
+                        ${earned.toLocaleString('ru-RU')} ₽
+                      </span>
+                      <div class="mt-1">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          s.isPaid 
+                            ? 'bg-emerald-100 text-emerald-800' 
+                            : 'bg-amber-100 text-amber-800'
+                        }">
+                          ${s.isPaid ? 'Оплачено' : 'Не оплачено'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // Поиск
+    function handleSearch(val) {
+      searchTerm = val;
+      renderEmployees();
+    }
+
+    // Управление модалкой СОТРУДНИКА
+    function openEmployeeModal(employeeId = null) {
+      const modal = document.getElementById('employee-modal');
+      const title = document.getElementById('employee-modal-title');
+      const form = document.getElementById('employee-form');
+      
+      form.reset();
+      
+      if (employeeId) {
+        const emp = employees.find(e => e.id === employeeId);
+        if (emp) {
+          title.innerText = 'Редактировать сотрудника';
+          document.getElementById('edit-employee-id').value = emp.id;
+          document.getElementById('emp-name').value = emp.name;
+          document.getElementById('emp-role').value = emp.role || '';
+          document.getElementById('emp-phone').value = emp.phone || '';
+        }
+      } else {
+        title.innerText = 'Добавить нового сотрудника';
+        document.getElementById('edit-employee-id').value = '';
+      }
+      
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeEmployeeModal() {
+      const modal = document.getElementById('employee-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveEmployee(event) {
+      event.preventDefault();
+      const id = document.getElementById('edit-employee-id').value;
+      const name = document.getElementById('emp-name').value;
+      const role = document.getElementById('emp-role').value;
+      const phone = document.getElementById('emp-phone').value;
+
+      if (!name.trim()) return;
+
+      if (id) {
+        // Редактирование
+        employees = employees.map(emp => 
+          emp.id === id ? { ...emp, name, role, phone } : emp
+        );
+      } else {
+        // Создание нового
+        const newId = Date.now().toString();
+        const newEmp = { id: newId, name, role, phone };
+        employees.push(newEmp);
+        selectedEmployeeId = newId; // Автовыбор
+      }
+
+      closeEmployeeModal();
+      renderEmployees();
+      renderDetails();
+    }
+
+    function deleteEmployee(id) {
+      const customConfirm = confirm('Вы уверены, что хотите удалить сотрудника? Все его смены также будут удалены.');
+      if (customConfirm) {
+        employees = employees.filter(e => e.id !== id);
+        shifts = shifts.filter(s => s.employeeId !== id);
+        if (selectedEmployeeId === id) {
+          selectedEmployeeId = null;
+        }
+        renderEmployees();
+        renderDetails();
+      }
+    }
+
+    // Управление модалкой СМЕНЫ
+    function openShiftModal(shiftId = null) {
+      const modal = document.getElementById('shift-modal');
+      const title = document.getElementById('shift-modal-title');
+      const subtitle = document.getElementById('shift-modal-subtitle');
+      const delBtn = document.getElementById('btn-delete-shift');
+      
+      const currentEmp = employees.find(e => e.id === selectedEmployeeId);
+      if (!currentEmp) return;
+
+      subtitle.innerText = `Сотрудник: ${currentEmp.name} (${currentEmp.role || 'Без должности'})`;
+
+      if (shiftId) {
+        // Редактирование существующей
+        const shift = shifts.find(s => s.id === shiftId);
+        if (shift) {
+          title.innerText = 'Детали рабочей смены';
+          document.getElementById('shift-id').value = shift.id;
+          document.getElementById('shift-start').value = shift.startTime;
+          document.getElementById('shift-end').value = shift.endTime;
+          document.getElementById('shift-rate').value = shift.rate;
+          
+          setReceiptState(shift.hasReceipt);
+          setPaidState(shift.isPaid);
+          
+          delBtn.classList.remove('hidden');
+        }
+      } else {
+        // Создание новой
+        title.innerText = 'Создать новую смену';
+        document.getElementById('shift-id').value = '';
+        
+        // Значения по умолчанию
+        const now = new Date();
+        now.setMinutes(0,0,0);
+        const startIso = now.toISOString().slice(0, 16);
+        const endIso = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16); // +8 часов
+
+        // Автозаполнение ставки из последней смены сотрудника (если есть)
+        const empShifts = shifts.filter(s => s.employeeId === selectedEmployeeId);
+        const defaultRate = empShifts.length > 0 ? empShifts[empShifts.length - 1].rate : 300;
+
+        document.getElementById('shift-start').value = startIso;
+        document.getElementById('shift-end').value = endIso;
+        document.getElementById('shift-rate').value = defaultRate;
+        
+        setReceiptState(false);
+        setPaidState(false);
+        
+        delBtn.classList.add('hidden');
+      }
+
+      recalculateShiftMetrics();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeShiftModal() {
+      const modal = document.getElementById('shift-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Переключение расписки
+    function setReceiptState(hasReceipt) {
+      tempReceiptState = hasReceipt;
+      const yesBtn = document.getElementById('btn-receipt-yes');
+      const noBtn = document.getElementById('btn-receipt-no');
+
+      if (hasReceipt) {
+        yesBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-emerald-600 border-emerald-600 text-white shadow-sm flex items-center justify-center space-x-1";
+        noBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center space-x-1";
+      } else {
+        yesBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center space-x-1";
+        noBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-slate-700 border-slate-700 text-white shadow-sm flex items-center justify-center space-x-1";
+      }
+      checkWarningBox();
+    }
+
+    // Переключение оплаты
+    function setPaidState(isPaid) {
+      tempPaidState = isPaid;
+      const yesBtn = document.getElementById('btn-paid-yes');
+      const noBtn = document.getElementById('btn-paid-no');
+
+      if (isPaid) {
+        yesBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-emerald-600 border-emerald-600 text-white shadow-sm flex items-center justify-center space-x-1";
+        noBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center space-x-1";
+      } else {
+        yesBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center space-x-1";
+        noBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl border bg-amber-600 border-amber-600 text-white shadow-sm flex items-center justify-center space-x-1";
+      }
+      checkWarningBox();
+    }
+
+    // Логика предупреждения несоответствия оплаты и расписки
+    function checkWarningBox() {
+      const warningBox = document.getElementById('warning-box');
+      if (!tempPaidState && tempReceiptState) {
+        warningBox.classList.remove('hidden');
+        warningBox.classList.add('flex');
+      } else {
+        warningBox.classList.add('hidden');
+        warningBox.classList.remove('flex');
+      }
+    }
+
+    // Интерактивный пересчет заработка прямо в модальном окне
+    function recalculateShiftMetrics() {
+      const start = document.getElementById('shift-start').value;
+      const end = document.getElementById('shift-end').value;
+      const rate = parseInt(document.getElementById('shift-rate').value) || 0;
+
+      const hours = calculateHours(start, end);
+      const earnings = calculateEarnings(start, end, rate);
+
+      document.getElementById('shift-calculated-hours').innerText = `${hours} ч.`;
+      document.getElementById('shift-calculated-earnings').innerText = `${earnings.toLocaleString('ru-RU')} ₽`;
+    }
+
+    // Сохранение смены
+    function saveShift(event) {
+      event.preventDefault();
+      const shiftId = document.getElementById('shift-id').value;
+      const startTime = document.getElementById('shift-start').value;
+      const endTime = document.getElementById('shift-end').value;
+      const rate = parseInt(document.getElementById('shift-rate').value) || 0;
+
+      if (new Date(endTime) <= new Date(startTime)) {
+        alert('Ошибка: Время окончания смены должно быть позже её начала!');
+        return;
+      }
+
+      const updatedShiftData = {
+        employeeId: selectedEmployeeId,
+        startTime,
+        endTime,
+        rate,
+        hasReceipt: tempReceiptState,
+        isPaid: tempPaidState
+      };
+
+      if (shiftId) {
+        // Обновление существующей
+        shifts = shifts.map(s => s.id === shiftId ? { ...s, ...updatedShiftData } : s);
+      } else {
+        // Создание новой
+        const newShift = {
+          id: 'shift_' + Date.now(),
+          ...updatedShiftData
+        };
+        shifts.push(newShift);
+      }
+
+      closeShiftModal();
+      renderDetails();
+      renderEmployees();
+    }
+
+    // Удаление смены
+    function deleteCurrentShift() {
+      const shiftId = document.getElementById('shift-id').value;
+      if (!shiftId) return;
+
+      const customConfirm = confirm('Вы уверены, что хотите безвозвратно удалить данную смену?');
+      if (customConfirm) {
+        shifts = shifts.filter(s => s.id !== shiftId);
+        closeShiftModal();
+        renderDetails();
+        renderEmployees();
+      }
+    }
+
+    // Инициализация при загрузке страницы
+    window.onload = function() {
+      renderEmployees();
+      renderDetails();
+    };
+  </script>
+</body>
+</html>
