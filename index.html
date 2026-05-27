@@ -3,983 +3,732 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Контроль расходов - Кейтеринг</title>
+    <title>Учёт выплат сотрудникам</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-    </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
 
-    <!-- Шапка приложения -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center space-x-3">
-                    <div class="p-2 bg-indigo-600 text-white rounded-lg">
-                        <i data-lucide="wallet" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-slate-900">VN Control</h1>
-                        <p class="text-xs text-slate-500">Учет расходов и выплат персоналу</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
-                    <button onclick="switchTab('catering')" id="tab-catering" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-white text-indigo-600 shadow-sm">
-                        Кейтеринг
-                    </button>
-                    <button onclick="switchTab('buffet')" id="tab-buffet" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-600 hover:text-slate-900">
-                        Буфет
-                    </button>
-                    <button onclick="switchTab('report')" id="tab-report" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-600 hover:text-slate-900">
-                        Отчет
-                    </button>
-                </div>
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Шапка -->
+        <header class="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="users" class="text-indigo-600 w-8 h-8"></i>
+                    Панель сотрудников и выплат
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">Отслеживание статусов ПКО и выплат по мероприятиям</p>
+            </div>
+            
+            <!-- Поиск -->
+            <div class="relative w-full md:w-80">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i data-lucide="search" class="text-slate-400 w-5 h-5"></i>
+                </span>
+                <input type="text" id="searchInput" placeholder="Поиск сотрудника..." 
+                    class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm">
+            </div>
+        </header>
+
+        <!-- Основная сетка сотрудников -->
+        <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Сюда динамически загрузятся карточки -->
+            <div class="col-span-full py-12 flex flex-col items-center justify-center text-slate-400">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
+                <p>Загрузка данных...</p>
             </div>
         </div>
-    </header>
+    </div>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- РАЗДЕЛ: КЕЙТЕРИНГ -->
-        <div id="section-catering" class="space-y-6">
-            <!-- Панель фильтров и поиска -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div class="relative w-full md:w-80">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <i data-lucide="search" class="w-5 h-5"></i>
-                    </span>
-                    <input type="text" id="search-input" oninput="filterStaff()" placeholder="Поиск сотрудника..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-slate-50">
-                </div>
-                
-                <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                    <select id="date-filter" onchange="filterStaff()" class="py-2 px-3 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="all">Все даты мероприятий</option>
-                    </select>
-                    <button onclick="resetData()" class="py-2 px-3 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg text-sm flex items-center gap-1 transition-colors">
-                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Сбросить расчеты
-                    </button>
-                </div>
-            </div>
-
-            <!-- Сводные данные -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                        <i data-lucide="users" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Сотрудников на сменах</p>
-                        <p id="stat-total-jobs" class="text-2xl font-bold text-slate-900">0</p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 bg-amber-50 text-amber-600 rounded-lg">
-                        <i data-lucide="hourglass" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Отработано часов всего</p>
-                        <p id="stat-total-hours" class="text-2xl font-bold text-slate-900">0 ч</p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                        <i data-lucide="banknote" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Общая сумма к выплате</p>
-                        <p id="stat-total-amount" class="text-2xl font-bold text-slate-950">0 ₽</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Сетка карточек сотрудников -->
-            <div id="catering-container" class="space-y-6">
-                <!-- Карточки будут добавлены динамически -->
-                <div class="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div class="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-indigo-600 rounded-full mb-2" role="status"></div>
-                    <p>Загрузка данных из репозитория...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- РАЗДЕЛ: БУФЕТ (Заглушка) -->
-        <div id="section-buffet" class="hidden min-h-[400px] flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-            <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-4">
-                <i data-lucide="coffee" class="w-10 h-10 text-amber-500"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Раздел «Буфет» находится в разработке</h2>
-            <p class="text-slate-500 max-w-md">Здесь будет располагаться интерфейс контроля расходов буфетных накрытий и точек питания.</p>
-        </div>
-
-        <!-- РАЗДЕЛ: ОТЧЕТ (Заглушка) -->
-        <div id="section-report" class="hidden min-h-[400px] flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-            <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-                <i data-lucide="bar-chart-3" class="w-10 h-10 text-indigo-500"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Раздел «Отчет» находится в разработке</h2>
-            <p class="text-slate-500 max-w-md">В этом разделе будут формироваться сводные графики, экспорт ведомостей в Excel и общая финансовая аналитика.</p>
-        </div>
-
-    </main>
-
-    <!-- Подвал -->
-    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
-        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500">
-            &copy; 2026 VN Control. Система управления расходами кейтеринга.
-        </div>
-    </footer>
-
-    <!-- JS Логика приложения -->
     <script>
-        // Резервные копии данных, если не удастся загрузить из репозитория напрямую
-        const backupStaffDb = [
-            {"name": "Авдонин", "phone": "+7 (920) 126-45-04"},
-            {"name": "Борисова", "phone": "+7 (910) 819-64-60"},
-            {"name": "Гайсина", "phone": "+7 (964) 136-18-00"},
-            {"name": "Капралов", "phone": "+7 (920) 118-81-28"},
-            {"name": "Козлова", "phone": "+7 (924) 402-56-99"},
-            {"name": "Коршунов", "phone": "+7 (920) 143-13-96"},
-            {"name": "Никулина", "phone": "+7 (920) 141-82-30"},
-            {"name": "Орехина", "phone": "+79012749063"},
-            {"name": "Пастухова", "phone": "+7 (915) 966-21-51"},
-            {"name": "Прохоров", "phone": "+7 (980) 704-60-58"},
-            {"name": "Салина", "phone": "+7 (903) 824-18-07"},
-            {"name": "Сухановская", "phone": "+79036468034"},
-            {"name": "Телов", "phone": "+7 (996) 926-51-72"}
+        // Предоставленные JSON данные
+        const staffDatabase = [
+          { "name": "Авдонин", "phone": "+7 (920) 126-45-04" },
+          { "name": "Борисова", "phone": "+7 (910) 819-64-60" },
+          { "name": "Гайсина", "phone": "+7 (964) 136-18-00" },
+          { "name": "Капралов", "phone": "+7 (920) 118-81-28" },
+          { "name": "Козлова", "phone": "+7 (924) 402-56-99" },
+          { "name": "Коршунов", "phone": "+7 (920) 143-13-96" },
+          { "name": "Никулина", "phone": "+7 (920) 141-82-30" },
+          { "name": "Орехина", "phone": "+79012749063" },
+          { "name": "Пастухова", "phone": "+7 (915) 966-21-51" },
+          { "name": "Прохоров", "phone": "+7 (980) 704-60-58" },
+          { "name": "Салина", "phone": "+7 (903) 824-18-07" },
+          { "name": "Сухановская", "phone": "+79036468034" },
+          { "name": "Телов", "phone": "+7 (996) 926-51-72" }
         ];
 
-        // Предоставленный JSON мероприятий
-        const backupEventsData = [
-            {
-                "id": "1776088130144",
-                "name": "Диво",
-                "date": "2026-07-24",
-                "start": "",
-                "end": "",
-                "format": "Банкет",
-                "displayDate": "24 июль",
-                "staff": [
-                    {"id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
-                    {"id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "phone": "+79012749063"},
-                    {"id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "phone": "+79807046058"},
-                    {"id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "phone": "79038241807"}
-                ]
-            },
-            {
-                "id": "1776111416416",
-                "name": "ПЯО",
-                "date": "2026-05-09",
-                "start": "08:00",
-                "end": "16:00",
-                "format": "Кофе-брейк",
-                "displayDate": "9 май",
-                "staff": [
-                    {"id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": {"Официант": true}},
-                    {"id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "phone": "+79244025699", "rolePaid": {"Официант": true}},
-                    {"id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": {"Официант": true}},
-                    {"id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "phone": "+79969265172", "rolePaid": {"Официант": true}}
-                ]
-            },
-            {
-                "id": "1776111545652",
-                "name": "Мэрия",
-                "date": "2026-05-30",
-                "start": "09:30",
-                "end": "10:00",
-                "format": "Кофе-брейк",
-                "displayDate": "30 май",
-                "staff": [
-                    {"id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
-                    {"id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
-                    {"id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
-                ]
-            },
-            {
-                "id": "1776111678750",
-                "name": "Квартирник",
-                "date": "2026-05-29",
-                "start": "",
-                "end": "",
-                "format": "Банкет",
-                "displayDate": "29 май",
-                "staff": [
-                    {"id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
-                    {"id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "phone": "+79201431396"},
-                    {"id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
-                ]
-            },
-            {
-                "id": "1776111860018",
-                "name": "Космопикник",
-                "date": "2026-06-16",
-                "start": "",
-                "end": "",
-                "format": "Несколько накрытий",
-                "displayDate": "16 июнь",
-                "staff": [
-                    {"id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "phone": "+79244025699"},
-                    {"id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79201431396"},
-                    {"id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "phone": "+79969265172"}
-                ]
-            },
-            {
-                "id": "1777537309462",
-                "name": "Прокуратура",
-                "date": "2026-05-07",
-                "start": "10:30",
-                "end": "20:00",
-                "format": "Несколько накрытий",
-                "displayDate": "7 май",
-                "staff": [
-                    {"id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"]},
-                    {"id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"]},
-                    {"id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777537523148",
-                "name": "Диво (Роман)",
-                "date": "2026-08-09",
-                "start": "14:00",
-                "end": "23:00",
-                "format": "Фуршет",
-                "displayDate": "9 август",
-                "staff": [
-                    {"id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"]},
-                    {"id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777884055273",
-                "name": "ПСМ",
-                "date": "2026-06-09",
-                "start": "",
-                "end": "",
-                "format": "Фуршет",
-                "displayDate": "9 июнь",
-                "staff": [
-                    {"id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777886866511",
-                "name": "Забег СБЕР",
-                "date": "2026-05-30",
-                "start": "08:30",
-                "end": "12:30",
-                "format": "Несколько накрытий",
-                "displayDate": "30 май",
-                "staff": [
-                    {"id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777889177428",
-                "name": "Школа 21 Сбер",
-                "date": "2026-05-20",
-                "start": "09:00",
-                "end": "12:00",
-                "format": "Кофе-брейк",
-                "displayDate": "20 май",
-                "staff": [
-                    {"id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777889232148",
-                "name": "Белояр",
-                "date": "2026-05-22",
-                "start": "16:30",
-                "end": "18:00",
-                "format": "Фуршет",
-                "displayDate": "22 май",
-                "staff": [
-                    {"id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"]},
-                    {"id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"]},
-                    {"id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"]},
-                    {"id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777889332128",
-                "name": "Забег ПСБ",
-                "date": "2026-05-23",
-                "start": "07:00",
-                "end": "15:00",
-                "format": "Фуршет",
-                "displayDate": "23 май",
-                "staff": [
-                    {"id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777890729728",
-                "name": "Сбер",
-                "date": "2026-05-19",
-                "start": "08:30",
-                "end": "15:30",
-                "format": "Кофе-брейк",
-                "displayDate": "19 май",
-                "staff": [
-                    {"id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"]},
-                    {"id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777890794176",
-                "name": "Сбер",
-                "date": "2026-05-20",
-                "start": "08:30",
-                "end": "15:30",
-                "format": "Кофе-брейк",
-                "displayDate": "20 май",
-                "staff": [
-                    {"id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"]},
-                    {"id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777890876158",
-                "name": "Сбер",
-                "date": "2026-05-21",
-                "start": "08:30",
-                "end": "15:30",
-                "format": "Кофе-брейк",
-                "displayDate": "21 май",
-                "staff": [
-                    {"id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1777890925842",
-                "name": "Сбер",
-                "date": "2026-05-22",
-                "start": "08:30",
-                "end": "11:30",
-                "format": "Кофе-брейк",
-                "displayDate": "22 май",
-                "staff": [
-                    {"id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778215141510",
-                "name": "Школа 21 Сбер",
-                "date": "2026-05-21",
-                "start": "09:00",
-                "end": "12:00",
-                "format": "Кофе-брейк",
-                "displayDate": "21 май",
-                "staff": [
-                    {"id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778678455822",
-                "name": "Единая Россия",
-                "date": "2026-06-02",
-                "start": "12:30",
-                "end": "15:30",
-                "format": "Кофе-брейк",
-                "displayDate": "2 июнь",
-                "staff": [
-                    {"id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"]},
-                    {"id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"]},
-                    {"id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"]},
-                    {"id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778743503713",
-                "name": "Белояр",
-                "date": "2026-05-23",
-                "start": "10:30",
-                "end": "12:30",
-                "format": "Фуршет",
-                "displayDate": "23 май",
-                "staff": [
-                    {"id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"]},
-                    {"id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778758318139",
-                "name": "Диво (Ганненко П.В.)",
-                "date": "2026-06-19",
-                "start": "",
-                "end": "",
-                "format": "Банкет",
-                "displayDate": "19 июнь",
-                "staff": [
-                    {"id": "1778758518243", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1778758528412", "name": "Салина", "phone": "+7 (903) 824-18-07", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778765125637",
-                "name": "Эндоскописты",
-                "date": "2026-06-19",
-                "start": "08:00",
-                "end": "18:00",
-                "format": "Кофе-брейк",
-                "displayDate": "19 июнь",
-                "staff": [
-                    {"id": "1778960623761", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778765220819",
-                "name": "Эндоскописты",
-                "date": "2026-06-20",
-                "start": "08:00",
-                "end": "18:00",
-                "format": "Кофе-брейк",
-                "displayDate": "20 июнь",
-                "staff": [
-                    {"id": "1778931344347", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "06:00", "end": "20:00", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1778828336804",
-                "name": "Белояр",
-                "date": "2026-08-08",
-                "start": "",
-                "end": "",
-                "format": "Несколько накрытий",
-                "displayDate": "8 август",
-                "staff": [
-                    {"id": "1778829694525", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1778829670779", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            },
-            {
-                "id": "1779369787842",
-                "name": "В кругу семьи",
-                "date": "2026-06-07",
-                "start": "",
-                "end": "",
-                "format": "",
-                "displayDate": "7 июнь",
-                "staff": [
-                    {"id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"]},
-                    {"id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"]}
-                ]
-            }
+        const eventsData = [
+          {
+            "id": "1776088130144",
+            "name": "Диво",
+            "date": "2026-07-24",
+            "start": "",
+            "end": "",
+            "format": "Банкет",
+            "admin": "Михаил",
+            "guests": "50",
+            "extraInfo": "",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "1" },
+            "displayDate": "24 июль",
+            "staff": [
+              { "id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+              { "id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79012749063" },
+              { "id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79807046058" },
+              { "id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "79038241807" }
+            ],
+            "status": { "бар": true, "мой": true, "оф": true, "checked": false },
+            "location": "ул. Камышовая, 10",
+            "contactName": "",
+            "contactPhone": ""
+          },
+          {
+            "id": "1776111416416",
+            "name": "ПЯО",
+            "date": "2026-05-09",
+            "start": "08:00",
+            "end": "16:00",
+            "format": "Кофе-брейк",
+            "admin": "Илья",
+            "guests": "80",
+            "extraInfo": "",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "9 май",
+            "staff": [
+              { "id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79244025699" },
+              { "id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79969265172" }
+            ],
+            "status": { "checked": true },
+            "location": "Советская пл., 3",
+            "contactName": "Ирина Адольфовна",
+            "contactPhone": "+79807410220"
+          },
+          {
+            "id": "1776111545652",
+            "name": "Мэрия",
+            "date": "2026-05-30",
+            "start": "09:30",
+            "end": "10:00",
+            "format": "Кофе-брейк",
+            "admin": "Александр",
+            "guests": "150",
+            "extraInfo": "Обязательно 4 кофе-машины и 2 бойлера ",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "30 май",
+            "staff": [
+              { "id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+              { "id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+              { "id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+            ],
+            "status": { "checked": true },
+            "location": "КЗЦ Милениум; фойе малого зала",
+            "contactName": "",
+            "contactPhone": ""
+          },
+          {
+            "id": "1776111678750",
+            "name": "Квартирник",
+            "date": "2026-05-29",
+            "start": "",
+            "end": "",
+            "format": "Банкет",
+            "admin": "",
+            "guests": "200",
+            "extraInfo": "",
+            "neededStaff": { "оф": "2", "бар": "1", "мой": "0", "пов": "0" },
+            "displayDate": "29 май",
+            "staff": [
+              { "id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+              { "id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "rolesDisplay": "Бармен", "rolePaid": {}, "phone": "+79201431396" },
+              { "id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+            ],
+            "status": { "checked": true },
+            "location": "Которосльная набережная, 53",
+            "contactName": "",
+            "contactPhone": ""
+          },
+          {
+            "id": "1776111860018",
+            "name": "Космопикник",
+            "date": "2026-06-16",
+            "start": "",
+            "end": "",
+            "format": "Несколько накрытий",
+            "admin": "",
+            "guests": "80",
+            "extraInfo": "",
+            "neededStaff": { "оф": "8", "бар": "", "мой": "", "пов": "0" },
+            "displayDate": "16 июнь",
+            "staff": [
+              { "id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
+              { "id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
+              { "id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
+            ],
+            "status": { "checked": false },
+            "location": "",
+            "contactName": "",
+            "contactPhone": ""
+          },
+          {
+            "id": "1777537309462",
+            "name": "Прокуратура",
+            "date": "2026-05-07",
+            "start": "10:30",
+            "end": "20:00",
+            "format": "Несколько накрытий",
+            "location": "Прокуратура (ул. Некрасова, 5)",
+            "admin": "Михаил",
+            "guests": "18",
+            "extraInfo": "10:30 Банкет - 18\n17:00 Фуршет - 30",
+            "neededStaff": { "оф": "3", "бар": "", "мой": "", "пов": "0" },
+            "displayDate": "7 май",
+            "staff": [
+              { "id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+            ],
+            "status": { "checked": true },
+            "location": "Прокуратура (ул. Некрасова, 5)",
+            "contactName": "В.В.",
+            "contactPhone": ""
+          },
+          {
+            "id": "1777537523148",
+            "name": "Диво (Роман)",
+            "date": "2026-08-09",
+            "start": "14:00",
+            "end": "23:00",
+            "format": "Фуршет",
+            "location": "ул. Камышовая, 10",
+            "admin": "Илья",
+            "guests": "55",
+            "extraInfo": "",
+            "neededStaff": { "оф": "4", "бар": "2", "мой": "", "пов": "1" },
+            "displayDate": "9 август",
+            "staff": [
+              { "id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"], "rolePaid": {} },
+              { "id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false },
+            "location": "ул. Камышовая, 10",
+            "contactName": "Роман",
+            "contactPhone": "+79806511563"
+          },
+          {
+            "id": "1777884055273",
+            "name": "ПСМ",
+            "date": "2026-06-09",
+            "start": "",
+            "end": "",
+            "format": "Фуршет",
+            "location": "Которосльная набережная, 53",
+            "admin": "Александр",
+            "guests": "150",
+            "extraInfo": "",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "9 июнь",
+            "staff": [
+              { "id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1777886866511",
+            "name": "Забег СБЕР",
+            "date": "2026-05-30",
+            "start": "08:30",
+            "end": "12:30",
+            "format": "Несколько накрытий",
+            "location": "Стрелка",
+            "admin": "Александр",
+            "guests": "1",
+            "extraInfo": "БУФЕТ: \n1. Петрусенко\n2. Цапова",
+            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "30 май",
+            "staff": [
+              { "id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1777889177428",
+            "name": "Школа 21 Сбер",
+            "date": "2026-05-20",
+            "start": "09:00",
+            "end": "12:00",
+            "format": "Кофе-брейк",
+            "location": "ул. Победы, 14а",
+            "admin": "Александр",
+            "guests": "28",
+            "extraInfo": "09:00-09:30: Велком\n11:30-11:45: Кофе-брейк",
+            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "20 май",
+            "staff": [
+              { "id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777889232148",
+            "name": "Белояр",
+            "date": "2026-05-22",
+            "start": "16:30",
+            "end": "18:00",
+            "format": "Фуршет",
+            "location": "Волжская набережная, 2",
+            "admin": "Михаил",
+            "guests": "40",
+            "extraInfo": "",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "22 май",
+            "staff": [
+              { "id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777889332128",
+            "name": "Забег ПСБ",
+            "date": "2026-05-23",
+            "start": "07:00",
+            "end": "15:00",
+            "format": "Фуршет",
+            "location": "",
+            "admin": "Михаил",
+            "guests": "30",
+            "extraInfo": "",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "23 май",
+            "staff": [
+              { "id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777890729728",
+            "name": "Сбер",
+            "date": "2026-05-19",
+            "start": "08:30",
+            "end": "15:30",
+            "format": "Кофе-брейк",
+            "location": "ул. Советская, 34",
+            "admin": "Михаил",
+            "guests": "130",
+            "extraInfo": "08:30-09:30: велком\n10:30-11:00: первый кофе-брейк\n12:30-13:30: Обед (столовая СБЕР)\n15:00-15:30: второй кофе-брейк",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "19 май",
+            "staff": [
+              { "id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777890794176",
+            "name": "Сбер",
+            "date": "2026-05-20",
+            "start": "08:30",
+            "end": "15:30",
+            "format": "Кофе-брейк",
+            "location": "ул. Советская, 34",
+            "admin": "Михаил",
+            "guests": "130",
+            "extraInfo": "",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "20 май",
+            "staff": [
+              { "id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
+              { "id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777890876158",
+            "name": "Сбер",
+            "date": "2026-05-21",
+            "start": "08:30",
+            "end": "15:30",
+            "format": "Кофе-брейк",
+            "location": "ул. Советская, 34",
+            "admin": "Илья",
+            "guests": "130",
+            "extraInfo": "",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "21 май",
+            "staff": [
+              { "id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1777890925842",
+            "name": "Сбер",
+            "date": "2026-05-22",
+            "start": "08:30",
+            "end": "11:30",
+            "format": "Кофе-брейк",
+            "location": "ул. Советская, 34",
+            "admin": "Илья",
+            "guests": "130",
+            "extraInfo": "",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "22 май",
+            "staff": [
+              { "id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1778215141510",
+            "name": "Школа 21 Сбер",
+            "date": "2026-05-21",
+            "start": "09:00",
+            "end": "12:00",
+            "format": "Кофе-брейк",
+            "location": "ул. Победы, 14",
+            "admin": "Александр",
+            "guests": "28",
+            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "21 май",
+            "staff": [
+              { "id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1778678455822",
+            "name": "Единая Россия",
+            "date": "2026-06-02",
+            "start": "12:30",
+            "end": "15:30",
+            "format": "Кофе-брейк",
+            "location": "Которосльная набережная, 53",
+            "admin": "Александр",
+            "guests": "300",
+            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "2 июнь",
+            "staff": [
+              { "id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1778743503713",
+            "name": "Белояр",
+            "date": "2026-05-23",
+            "start": "10:30",
+            "end": "12:30",
+            "format": "Фуршет",
+            "location": "",
+            "admin": "Михаил",
+            "guests": "60",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "23 май",
+            "staff": [
+              { "id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1778758318139",
+            "name": "Диво (Ганненко П.В.)",
+            "date": "2026-06-19",
+            "start": "",
+            "end": "",
+            "format": "Банкет",
+            "location": "ул. Камышовая, 10",
+            "admin": "Михаил",
+            "guests": "45",
+            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "19 июнь",
+            "staff": [
+              { "id": "1778758518243", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778758528412", "name": "Салина", "phone": "+7 (903) 824-18-07", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": true }
+          },
+          {
+            "id": "1778765125637",
+            "name": "Эндоскописты",
+            "date": "2026-06-19",
+            "start": "08:00",
+            "end": "18:00",
+            "format": "Кофе-брейк",
+            "location": "Советская пл., 3",
+            "admin": "Михаил",
+            "guests": "250",
+            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "19 июнь",
+            "staff": [
+              { "id": "1778960623761", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1778765220819",
+            "name": "Эндоскописты",
+            "date": "2026-06-20",
+            "start": "08:00",
+            "end": "18:00",
+            "format": "Кофе-брейк",
+            "location": "Советская пл., 3",
+            "admin": "",
+            "guests": "250",
+            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "20 июнь",
+            "staff": [
+              { "id": "1778931344347", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "06:00", "end": "20:00", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1778828336804",
+            "name": "Белояр",
+            "date": "2026-08-08",
+            "start": "",
+            "end": "",
+            "format": "Несколько накрытий",
+            "location": "",
+            "admin": "Михаил",
+            "guests": "40",
+            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "8 август",
+            "staff": [
+              { "id": "1778829694525", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1778829670779", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          },
+          {
+            "id": "1779369787842",
+            "name": "В кругу семьи",
+            "date": "2026-06-07",
+            "start": "",
+            "end": "",
+            "format": "",
+            "location": "",
+            "admin": "",
+            "guests": "200",
+            "neededStaff": { "оф": "5", "бар": "", "мой": "", "пов": "" },
+            "displayDate": "7 июнь",
+            "staff": [
+              { "id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
+              { "id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
+            ],
+            "status": { "checked": false }
+          }
         ];
 
-        // Глобальные состояния
-        let staffDatabase = [];
-        let eventsData = [];
-        let flatStaffList = []; // Преобразованный список смен
-        let userSettings = {};  // Хранение ставок, кастомного времени и чекбоксов (localStorage)
+        // Ключ для хранения в LocalStorage
+        const STORAGE_KEY = 'staff_payment_states';
 
-        // Инициализация при загрузке
-        window.addEventListener('DOMContentLoaded', async () => {
-            loadSavedSettings();
-            await fetchData();
-            processData();
-            buildDateFilter();
-            renderCatering();
-            lucide.createIcons();
-        });
+        // Получить сохраненные состояния ПКО и выплат
+        function getSavedStates() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        }
 
-        // Загрузка сохраненных настроек из LocalStorage
-        function loadSavedSettings() {
-            const saved = localStorage.getItem('vn_expense_settings');
-            if (saved) {
-                try {
-                    userSettings = JSON.parse(saved);
-                } catch (e) {
-                    console.error("Ошибка при чтении настроек:", e);
-                    userSettings = {};
-                }
+        // Сохранить состояние
+        function saveState(staffName, eventId, key, value) {
+            const states = getSavedStates();
+            const stateId = `${staffName}_${eventId}`;
+            if (!states[stateId]) {
+                states[stateId] = { pko: false, paid: false };
             }
+            states[stateId][key] = value;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(states));
         }
 
-        // Сохранение настроек в LocalStorage
-        function saveSettings() {
-            localStorage.setItem('vn_expense_settings', JSON.stringify(userSettings));
-            updateStats();
+        // Связываем сотрудника и события, в которых он участвовал
+        function getStaffEvents(staffName) {
+            return eventsData.filter(event => {
+                if (!event.staff) return false;
+                // Сравнение фамилий сотрудников (без учёта регистра и пробелов)
+                return event.staff.some(s => s.name.trim().toLowerCase() === staffName.trim().toLowerCase());
+            }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Сначала новые
         }
 
-        // Сбросить сохраненные расчеты
-        function resetData() {
-            if (confirm("Вы уверены, что хотите сбросить все введенные ставки, часы и отметки об оплате?")) {
-                userSettings = {};
-                localStorage.removeItem('vn_expense_settings');
-                processData();
-                renderCatering();
-            }
-        }
+        // Отрисовка приложения
+        function renderStaff(filterText = '') {
+            const grid = document.getElementById('staffGrid');
+            grid.innerHTML = '';
 
-        // Запрос данных из репозитория GitHub или fallback на локальные данные
-        async function fetchData() {
-            try {
-                const staffResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json');
-                if (staffResponse.ok) {
-                    staffDatabase = await staffResponse.json();
-                } else {
-                    throw new Error("Не удалось загрузить БД сотрудников");
-                }
-            } catch (error) {
-                console.warn("Локальный fallback для базы сотрудников:", error);
-                staffDatabase = backupStaffDb;
-            }
+            const filteredStaff = staffDatabase.filter(person => 
+                person.name.toLowerCase().includes(filterText.toLowerCase())
+            );
 
-            try {
-                const eventsResponse = await fetch('https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json');
-                if (eventsResponse.ok) {
-                    eventsData = await eventsResponse.json();
-                } else {
-                    throw new Error("Не удалось загрузить данные мероприятий");
-                }
-            } catch (error) {
-                console.warn("Локальный fallback для данных мероприятий:", error);
-                eventsData = backupEventsData;
-            }
-        }
-
-        // Обработка данных: разворачивание назначений сотрудников в линейный список смен
-        function processData() {
-            flatStaffList = [];
-
-            eventsData.forEach(event => {
-                if (!event.staff || event.staff.length === 0) return;
-
-                event.staff.forEach(person => {
-                    const shiftId = `${event.id}_${person.id}`;
-                    
-                    // Поиск оригинального телефона в БД персонала
-                    const dbPerson = staffDatabase.find(p => p.name.toLowerCase() === person.name.toLowerCase());
-                    const phone = person.phone || (dbPerson ? dbPerson.phone : '—');
-
-                    // Поиск пользовательских параметров в сохраненных настройках
-                    const custom = userSettings[shiftId] || {};
-
-                    // Вычисляем время и часы
-                    const timeIn = custom.timeIn !== undefined ? custom.timeIn : (person.time || event.start || '');
-                    const timeOut = custom.timeOut !== undefined ? custom.timeOut : (person.end || event.end || '');
-
-                    let hours = 0;
-                    let isCalculated = false;
-
-                    if (timeIn && timeOut) {
-                        const [hIn, mIn] = timeIn.split(':').map(Number);
-                        const [hOut, mOut] = timeOut.split(':').map(Number);
-                        
-                        if (!isNaN(hIn) && !isNaN(mIn) && !isNaN(hOut) && !isNaN(mOut)) {
-                            let diffMinutes = (hOut * 60 + mOut) - (hIn * 60 + mIn);
-                            if (diffMinutes < 0) {
-                                diffMinutes += 24 * 60;
-                            }
-                            hours = parseFloat((diffMinutes / 60).toFixed(2));
-                            isCalculated = true;
-                        }
-                    }
-
-                    if (!isCalculated && custom.manualHours !== undefined) {
-                        hours = parseFloat(custom.manualHours) || 0;
-                    }
-
-                    const rate = custom.rate !== undefined ? parseFloat(custom.rate) : 0;
-                    const amount = parseFloat((hours * rate).toFixed(2));
-
-                    flatStaffList.push({
-                        shiftId,
-                        eventId: event.id,
-                        eventName: event.name,
-                        eventFormat: event.format || 'Кейтеринг',
-                        eventDate: event.date,
-                        displayDate: event.displayDate || event.date,
-                        personId: person.id,
-                        personName: person.name,
-                        phone: phone,
-                        role: person.rolesDisplay || (person.roles ? person.roles.join(', ') : 'Официант'),
-                        timeIn: timeIn,
-                        timeOut: timeOut,
-                        hours: hours,
-                        isCalculated: isCalculated,
-                        rate: rate,
-                        amount: amount,
-                        isRko: !!custom.isRko,
-                        isPaid: !!custom.isPaid,
-                        manualHours: custom.manualHours !== undefined ? custom.manualHours : ''
-                    });
-                });
-            });
-        }
-
-        // Сбор уникальных дат для фильтрации
-        function buildDateFilter() {
-            const select = document.getElementById('date-filter');
-            select.innerHTML = '<option value="all">Все даты мероприятий</option>';
-
-            const dates = [...new Set(flatStaffList.map(item => item.eventDate))];
-            dates.sort((a, b) => new Date(b) - new Date(a));
-
-            dates.forEach(date => {
-                const item = flatStaffList.find(i => i.eventDate === date);
-                const option = document.createElement('option');
-                option.value = date;
-                option.textContent = item ? item.displayDate : date;
-                select.appendChild(option);
-            });
-        }
-
-        // Переключение вкладок разделов
-        function switchTab(tabName) {
-            const tabs = ['catering', 'buffet', 'report'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`tab-${t}`);
-                const sec = document.getElementById(`section-${t}`);
-                
-                if (t === tabName) {
-                    btn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-                    btn.classList.remove('text-slate-600', 'hover:text-slate-900');
-                    sec.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-                    btn.classList.add('text-slate-600', 'hover:text-slate-900');
-                    sec.classList.add('hidden');
-                }
-            });
-            lucide.createIcons();
-        }
-
-        // Группировка, сортировка сотрудников и их смен
-        function groupAndSortData(filteredList) {
-            // Группируем смены по сотрудникам
-            const staffGroups = {};
-            
-            filteredList.forEach(shift => {
-                const key = shift.personName;
-                if (!staffGroups[key]) {
-                    staffGroups[key] = {
-                        name: shift.personName,
-                        phone: shift.phone,
-                        shifts: []
-                    };
-                }
-                staffGroups[key].shifts.push(shift);
-            });
-
-            // Преобразуем в массив
-            const staffArray = Object.values(staffGroups);
-
-            // 1. Сортировка сотрудников по алфавиту А-Я
-            staffArray.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-
-            // 2. Сортировка смен внутри сотрудника от прошлых к будущим (хронологически)
-            staffArray.forEach(group => {
-                group.shifts.sort((a, b) => {
-                    // Сначала по дате
-                    const dateDiff = new Date(a.eventDate) - new Date(b.eventDate);
-                    if (dateDiff !== 0) return dateDiff;
-                    // Если дата одна, сортируем по времени начала смены
-                    return (a.timeIn || '00:00').localeCompare(b.timeIn || '00:00');
-                });
-            });
-
-            return staffArray;
-        }
-
-        // Рендеринг карточек сотрудников и таблиц их смен
-        function renderCatering() {
-            const searchVal = document.getElementById('search-input').value;
-            const dateFilterVal = document.getElementById('date-filter').value;
-            
-            const query = searchVal.toLowerCase().trim();
-            
-            // Сначала фильтруем базовый список
-            const filteredShifts = flatStaffList.filter(item => {
-                const matchesSearch = item.personName.toLowerCase().includes(query) || 
-                                      item.eventName.toLowerCase().includes(query) || 
-                                      item.role.toLowerCase().includes(query);
-                
-                const matchesDate = dateFilterVal === 'all' || item.eventDate === dateFilterVal;
-                
-                return matchesSearch && matchesDate;
-            });
-
-            // Группируем и сортируем по правилам
-            const groupedStaff = groupAndSortData(filteredShifts);
-            
-            const container = document.getElementById('catering-container');
-            container.innerHTML = '';
-
-            if (groupedStaff.length === 0) {
-                container.innerHTML = `
-                    <div class="py-16 text-center bg-white rounded-xl border border-slate-200 shadow-sm">
-                        <i data-lucide="folder-open" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
-                        <p class="text-slate-500 font-medium">Сотрудники или смены не найдены</p>
-                        <p class="text-xs text-slate-400 mt-1">Попробуйте изменить поисковый запрос или фильтр по дате</p>
+            if (filteredStaff.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-150">
+                        <i data-lucide="user-x" class="w-12 h-12 mx-auto text-slate-300 mb-2"></i>
+                        Сотрудники не найдены
                     </div>
                 `;
                 lucide.createIcons();
-                updateStats(filteredShifts);
                 return;
             }
 
-            groupedStaff.forEach(staff => {
-                // Подсчет общих финансовых итогов по данному сотруднику
-                const totalEmployeeHours = staff.shifts.reduce((sum, s) => sum + s.hours, 0);
-                const totalEmployeeEarned = staff.shifts.reduce((sum, s) => sum + s.amount, 0);
+            const savedStates = getSavedStates();
 
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md";
+            filteredStaff.forEach(person => {
+                const staffEvents = getStaffEvents(person.name);
                 
-                // Содержимое карточки сотрудника
-                let cardHtml = `
-                    <!-- Заголовок карточки с ФИО -->
-                    <div class="bg-slate-50/70 border-b border-slate-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div class="flex items-center space-x-3.5">
-                            <div class="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 font-bold flex items-center justify-center text-base">
-                                ${staff.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-slate-950 flex items-center gap-2">
-                                    ${staff.name}
-                                    <span class="text-xs font-normal text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md">
-                                        Смен: ${staff.shifts.length}
-                                    </span>
-                                </h3>
-                                <a href="tel:${staff.phone}" class="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 mt-0.5 transition-colors">
-                                    <i data-lucide="phone" class="w-3.5 h-3.5"></i> ${staff.phone}
-                                </a>
-                            </div>
+                // Создание плашки сотрудника
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between transition-all hover:shadow-md";
+
+                // Шапка карточки сотрудника
+                let headerHtml = `
+                    <div class="p-5 border-b border-slate-50 bg-slate-50/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span>
+                                ${person.name}
+                            </h3>
+                            <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-medium">
+                                Мероприятий: ${staffEvents.length}
+                            </span>
                         </div>
-                        <div class="flex items-center space-x-4 self-end sm:self-center">
-                            <div class="text-right">
-                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Всего часов</span>
-                                <p class="text-sm font-bold text-slate-700">${parseFloat(totalEmployeeHours.toFixed(2))} ч</p>
-                            </div>
-                            <div class="h-8 w-px bg-slate-200"></div>
-                            <div class="text-right">
-                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">К выплате</span>
-                                <p class="text-base font-extrabold text-indigo-600">${Math.round(totalEmployeeEarned).toLocaleString('ru-RU')} ₽</p>
-                            </div>
+                        <div class="flex items-center gap-1.5 text-slate-500 text-sm">
+                            <i data-lucide="phone" class="w-4 h-4"></i>
+                            <a href="tel:${person.phone}" class="hover:text-indigo-600 hover:underline">${person.phone}</a>
                         </div>
                     </div>
-
-                    <!-- Табличная часть смен -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/30 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                                    <th class="py-3 px-6">Мероприятие / Формат</th>
-                                    <th class="py-3 px-3">Роль</th>
-                                    <th class="py-3 px-3 text-center w-28">Приход</th>
-                                    <th class="py-3 px-3 text-center w-28">Уход</th>
-                                    <th class="py-3 px-3 text-center w-28">Часы работы</th>
-                                    <th class="py-3 px-3 text-center w-36">Ставка в час</th>
-                                    <th class="py-3 px-3 text-right">Расчет</th>
-                                    <th class="py-3 px-3 text-center w-24">РКО</th>
-                                    <th class="py-3 px-6 text-center w-24">Статус</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-sm">
                 `;
 
-                // Строки таблицы смен
-                staff.shifts.forEach(shift => {
-                    const rowBgClass = shift.isPaid ? 'bg-emerald-50/20' : (shift.isRko ? 'bg-blue-50/10' : 'hover:bg-slate-50/30');
-                    const rowBorderClass = shift.isPaid ? 'border-l-4 border-l-emerald-500' : (shift.isRko ? 'border-l-4 border-l-blue-400' : '');
-
-                    cardHtml += `
-                        <tr class="${rowBgClass} ${rowBorderClass} transition-colors">
-                            <!-- Мероприятие -->
-                            <td class="py-4 px-6">
-                                <span class="inline-block text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mb-1">
-                                    ${shift.displayDate}
-                                </span>
-                                <div class="font-bold text-slate-800 leading-tight">${shift.eventName}</div>
-                                <div class="text-xs text-slate-400 mt-0.5">${shift.eventFormat}</div>
-                            </td>
-                            
-                            <!-- Роль -->
-                            <td class="py-4 px-3 text-slate-600 font-medium">
-                                ${shift.role}
-                            </td>
-
-                            <!-- Приход -->
-                            <td class="py-4 px-3">
-                                <input type="text" 
-                                       placeholder="--:--" 
-                                       value="${shift.timeIn}" 
-                                       onchange="updateShiftField('${shift.shiftId}', 'timeIn', this.value)"
-                                       class="w-full text-center py-1 border border-slate-200 rounded text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            </td>
-
-                            <!-- Уход -->
-                            <td class="py-4 px-3">
-                                <input type="text" 
-                                       placeholder="--:--" 
-                                       value="${shift.timeOut}" 
-                                       onchange="updateShiftField('${shift.shiftId}', 'timeOut', this.value)"
-                                       class="w-full text-center py-1 border border-slate-200 rounded text-sm font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            </td>
-
-                            <!-- Отработанные часы -->
-                            <td class="py-4 px-3 text-center">
-                                ${shift.isCalculated ? 
-                                    `<span class="inline-block text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded">
-                                        Авто: ${shift.hours} ч
-                                     </span>` : 
-                                    `<div class="flex items-center justify-center space-x-1">
-                                        <input type="number" 
-                                               step="0.5" 
-                                               placeholder="0" 
-                                               value="${shift.manualHours}" 
-                                               oninput="updateShiftField('${shift.shiftId}', 'manualHours', this.value)"
-                                               class="w-14 text-center py-1 border border-slate-200 rounded text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500">
-                                        <span class="text-xs text-slate-400 font-bold">ч</span>
-                                     </div>`
-                                }
-                            </td>
-
-                            <!-- Ставка в час -->
-                            <td class="py-4 px-3">
-                                <div class="relative w-28 mx-auto">
-                                    <input type="number" 
-                                           step="10" 
-                                           placeholder="0" 
-                                           value="${shift.rate || ''}" 
-                                           oninput="updateShiftField('${shift.shiftId}', 'rate', this.value)"
-                                           class="w-full text-right pr-6 pl-1.5 py-1 border border-slate-200 rounded text-sm font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                                    <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">₽</span>
-                                </div>
-                            </td>
-
-                            <!-- Начисленные деньги -->
-                            <td class="py-4 px-3 text-right font-extrabold text-indigo-600">
-                                ${shift.amount.toLocaleString('ru-RU')} ₽
-                            </td>
-
-                            <!-- Чекбокс РКО -->
-                            <td class="py-4 px-3 text-center">
-                                <label class="inline-flex items-center justify-center cursor-pointer select-none">
-                                    <input type="checkbox" 
-                                           ${shift.isRko ? 'checked' : ''} 
-                                           onchange="toggleCheckState('${shift.shiftId}', 'isRko', this.checked)"
-                                           class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 relative"></div>
-                                </label>
-                            </td>
-
-                            <!-- Чекбокс Оплачено -->
-                            <td class="py-4 px-6 text-center">
-                                <label class="inline-flex items-center justify-center cursor-pointer select-none">
-                                    <input type="checkbox" 
-                                           ${shift.isPaid ? 'checked' : ''} 
-                                           onchange="toggleCheckState('${shift.shiftId}', 'isPaid', this.checked)"
-                                           class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 relative"></div>
-                                </label>
-                            </td>
-                        </tr>
+                // Список мероприятий
+                let eventsHtml = '';
+                if (staffEvents.length === 0) {
+                    eventsHtml = `
+                        <div class="p-5 text-center text-slate-400 text-xs">
+                            Нет записей о мероприятиях
+                        </div>
                     `;
-                });
+                } else {
+                    eventsHtml = '<div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">';
+                    staffEvents.forEach(event => {
+                        const stateId = `${person.name}_${event.id}`;
+                        const isPko = savedStates[stateId]?.pko || false;
+                        const isPaid = savedStates[stateId]?.paid || false;
 
-                cardHtml += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+                        // Находим роль на мероприятии
+                        const staffMember = event.staff.find(s => s.name.trim().toLowerCase() === person.name.trim().toLowerCase());
+                        const roleName = staffMember?.rolesDisplay || (staffMember?.roles ? staffMember.roles.join(', ') : 'Официант');
 
-                card.innerHTML = cardHtml;
-                container.appendChild(card);
+                        eventsHtml += `
+                            <div class="p-4 hover:bg-slate-50/30 transition-colors">
+                                <div class="flex justify-between items-start gap-2 mb-2">
+                                    <div>
+                                        <div class="font-semibold text-slate-800 text-sm">${event.name}</div>
+                                        <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${event.displayDate} 2026
+                                            ${event.format ? `• <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded">${event.format}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-slate-500 italic bg-slate-100 px-2 py-0.5 rounded">
+                                        ${roleName}
+                                    </span>
+                                </div>
+                                
+                                <!-- Кнопки статуса (ПКО и Выплата) -->
+                                <div class="grid grid-cols-2 gap-2 mt-3">
+                                    <button onclick="toggleStatus('${person.name}', '${event.id}', 'pko', this)" 
+                                        class="pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all ${
+                                            isPko 
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+                                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                        }">
+                                        <i data-lucide="${isPko ? 'file-check-2' : 'file-text'}" class="w-3.5 h-3.5"></i>
+                                        ПКО написан
+                                    </button>
+                                    
+                                    <button onclick="toggleStatus('${person.name}', '${event.id}', 'paid', this)" 
+                                        class="paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all ${
+                                            isPaid 
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                        }">
+                                        <i data-lucide="${isPaid ? 'check-circle-2' : 'circle'}" class="w-3.5 h-3.5"></i>
+                                        Деньги выплачены
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    eventsHtml += '</div>';
+                }
+
+                card.innerHTML = headerHtml + eventsHtml;
+                grid.appendChild(card);
             });
 
+            // Инициализация иконок Lucide
             lucide.createIcons();
-            updateStats(filteredShifts);
         }
 
-        // Обновление числовых параметров смены
-        function updateShiftField(shiftId, fieldName, value) {
-            if (!userSettings[shiftId]) {
-                userSettings[shiftId] = {};
+        // Функция изменения статуса при клике на кнопки
+        window.toggleStatus = function(staffName, eventId, key, button) {
+            const stateId = `${staffName}_${eventId}`;
+            const states = getSavedStates();
+            const currentVal = states[stateId]?.[key] || false;
+            const newVal = !currentVal;
+
+            saveState(staffName, eventId, key, newVal);
+
+            // Визуальное обновление кнопки без полной перерисовки страницы
+            if (key === 'pko') {
+                if (newVal) {
+                    button.className = "pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm";
+                    button.innerHTML = '<i data-lucide="file-check-2" class="w-3.5 h-3.5"></i> ПКО написан';
+                } else {
+                    button.className = "pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
+                    button.innerHTML = '<i data-lucide="file-text" class="w-3.5 h-3.5"></i> ПКО написан';
+                }
+            } else if (key === 'paid') {
+                if (newVal) {
+                    button.className = "paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-blue-50 text-blue-700 border-blue-200 shadow-sm";
+                    button.innerHTML = '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Деньги выплачены';
+                } else {
+                    button.className = "paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
+                    button.innerHTML = '<i data-lucide="circle" class="w-3.5 h-3.5"></i> Деньги выплачены';
+                }
             }
-            
-            userSettings[shiftId][fieldName] = value;
-            saveSettings();
-            
-            // Перерассчитываем данные
-            processData();
-            
-            // Быстро рендерим интерфейс с сохранением прокрутки и введенного поиска
-            renderCatering();
+            lucide.createIcons();
         }
 
-        // Переключение статуса РКО / Оплачено
-        function toggleCheckState(shiftId, fieldName, checked) {
-            if (!userSettings[shiftId]) {
-                userSettings[shiftId] = {};
-            }
+        // Слушатель поиска
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderStaff(e.target.value);
+        });
 
-            userSettings[shiftId][fieldName] = checked;
-            saveSettings();
-            
-            processData();
-            renderCatering();
-        }
-
-        // Логика фильтрации и поиска
-        function filterStaff() {
-            renderCatering();
-        }
-
-        // Сводная финансовая статистика по отфильтрованному списку смен
-        function updateStats(list = flatStaffList) {
-            // Подсчитываем уникальных сотрудников, у которых есть смены в текущей выборке
-            const uniqueStaffNames = new Set(list.map(item => item.personName));
-            
-            let totalHours = 0;
-            let totalAmount = 0;
-
-            list.forEach(item => {
-                totalHours += item.hours;
-                totalAmount += item.amount;
-            });
-
-            document.getElementById('stat-total-jobs').textContent = uniqueStaffNames.size;
-            document.getElementById('stat-total-hours').textContent = `${parseFloat(totalHours.toFixed(1))} ч`;
-            document.getElementById('stat-total-amount').textContent = `${Math.round(totalAmount).toLocaleString('ru-RU')} ₽`;
-        }
+        // Первичный запуск
+        window.onload = function() {
+            renderStaff();
+        };
     </script>
 </body>
 </html>
