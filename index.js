@@ -1,10 +1,9 @@
 const { Telegraf } = require('telegraf');
 const admin = require('firebase-admin');
+const fs = require('fs');
 
-// Инициализация Firebase через переменную окружения
-// В облачном сервисе (Render/Railway) создайте переменную FIREBASE_SERVICE_ACCOUNT
-// и вставьте туда содержимое вашего JSON-файла целиком.
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+// Считываем ключ из файла, который должен лежать в той же папке на GitHub
+const serviceAccount = JSON.parse(fs.readFileSync('./serviceAccountKey.json', 'utf8'));
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -31,7 +30,7 @@ bot.hears(/^взял\s+(\d+)$/i, async (ctx) => {
     }
 });
 
-// Команда "имя дата сумма" (например: авдонин 23.05 3000)
+// Команда "имя дата сумма"
 bot.hears(/^([а-яё]+)\s+(\d{1,2}\.\d{1,2})\s+(\d+)$/i, async (ctx) => {
     try {
         const [_, name, eventDate, amount] = ctx.match;
@@ -55,6 +54,5 @@ bot.launch().then(() => {
     console.error('Ошибка при запуске бота:', err);
 });
 
-// Остановка бота при выключении процесса
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
