@@ -13,27 +13,27 @@
 
     <div class="max-w-6xl mx-auto px-4 py-8">
         <!-- Шапка -->
-        <header class="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <header class="mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="users" class="text-indigo-600 w-8 h-8"></i>
+                <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="users" class="text-indigo-600 w-7 h-7"></i>
                     Панель сотрудников и выплат
                 </h1>
-                <p class="text-slate-500 text-sm mt-1">Отслеживание статусов ПКО и выплат по мероприятиям</p>
+                <p class="text-slate-500 text-xs mt-0.5">Отслеживание статусов ПКО и выплат по мероприятиям (кликните на сотрудника, чтобы раскрыть список)</p>
             </div>
             
             <!-- Поиск -->
             <div class="relative w-full md:w-80">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <i data-lucide="search" class="text-slate-400 w-5 h-5"></i>
+                    <i data-lucide="search" class="text-slate-400 w-4 h-4"></i>
                 </span>
                 <input type="text" id="searchInput" placeholder="Поиск сотрудника..." 
-                    class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm">
+                    class="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm">
             </div>
         </header>
 
         <!-- Основная сетка сотрудников -->
-        <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Сюда динамически загрузятся карточки -->
             <div class="col-span-full py-12 flex flex-col items-center justify-center text-slate-400">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
@@ -572,6 +572,22 @@
             }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Сначала новые
         }
 
+        // Функция переключения разворачивания карточки
+        window.toggleCard = function(staffName) {
+            const container = document.getElementById(`events-container-${staffName}`);
+            const chevron = document.getElementById(`chevron-${staffName}`);
+            if (container && chevron) {
+                const isHidden = container.classList.contains('hidden');
+                if (isHidden) {
+                    container.classList.remove('hidden');
+                    chevron.classList.add('rotate-180');
+                } else {
+                    container.classList.add('hidden');
+                    chevron.classList.remove('rotate-180');
+                }
+            }
+        }
+
         // Отрисовка приложения
         function renderStaff(filterText = '') {
             const grid = document.getElementById('staffGrid');
@@ -599,37 +615,37 @@
                 
                 // Создание плашки сотрудника
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between transition-all hover:shadow-md";
+                card.className = "bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between transition-all hover:shadow-md";
 
-                // Шапка карточки сотрудника
+                // Шапка карточки сотрудника (компактная, кликабельная)
+                // Скрыли телефон, добавили шеврон состояния и сделали заголовок компактным (py-3 px-4 вместо p-5)
                 let headerHtml = `
-                    <div class="p-5 border-b border-slate-50 bg-slate-50/50">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span>
+                    <div onclick="toggleCard('${person.name}')" class="py-3 px-4 bg-slate-50/50 hover:bg-slate-100/60 transition-colors cursor-pointer flex items-center justify-between select-none">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                            <h3 class="font-bold text-slate-900 text-sm md:text-base">
                                 ${person.name}
                             </h3>
-                            <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-medium">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
                                 Мероприятий: ${staffEvents.length}
                             </span>
-                        </div>
-                        <div class="flex items-center gap-1.5 text-slate-500 text-sm">
-                            <i data-lucide="phone" class="w-4 h-4"></i>
-                            <a href="tel:${person.phone}" class="hover:text-indigo-600 hover:underline">${person.phone}</a>
+                            <i id="chevron-${person.name}" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform duration-200"></i>
                         </div>
                     </div>
                 `;
 
-                // Список мероприятий
-                let eventsHtml = '';
+                // Список мероприятий (скрыт по умолчанию, убрали max-h-96 и overflow-y-auto)
+                let eventsHtml = `<div id="events-container-${person.name}" class="hidden divide-y divide-slate-100 border-t border-slate-100">`;
+                
                 if (staffEvents.length === 0) {
-                    eventsHtml = `
-                        <div class="p-5 text-center text-slate-400 text-xs">
+                    eventsHtml += `
+                        <div class="p-4 text-center text-slate-400 text-xs">
                             Нет записей о мероприятиях
                         </div>
                     `;
                 } else {
-                    eventsHtml = '<div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">';
                     staffEvents.forEach(event => {
                         const stateId = `${person.name}_${event.id}`;
                         const isPko = savedStates[stateId]?.pko || false;
@@ -640,47 +656,49 @@
                         const roleName = staffMember?.rolesDisplay || (staffMember?.roles ? staffMember.roles.join(', ') : 'Официант');
 
                         eventsHtml += `
-                            <div class="p-4 hover:bg-slate-50/30 transition-colors">
+                            <div class="p-3 hover:bg-slate-50/30 transition-colors">
                                 <div class="flex justify-between items-start gap-2 mb-2">
                                     <div>
-                                        <div class="font-semibold text-slate-800 text-sm">${event.name}</div>
-                                        <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                                        <!-- Дата первая сверху (поменяли местами) -->
+                                        <div class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-0.5">
                                             <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${event.displayDate} 2026
-                                            ${event.format ? `• <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded">${event.format}</span>` : ''}
+                                            ${event.format ? `• <span class="bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded text-[10px]">${event.format}</span>` : ''}
                                         </div>
+                                        <!-- Название мероприятия ниже -->
+                                        <div class="font-bold text-slate-800 text-xs">${event.name}</div>
                                     </div>
-                                    <span class="text-xs text-slate-500 italic bg-slate-100 px-2 py-0.5 rounded">
+                                    <span class="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
                                         ${roleName}
                                     </span>
                                 </div>
                                 
                                 <!-- Кнопки статуса (ПКО и Выплата) -->
-                                <div class="grid grid-cols-2 gap-2 mt-3">
-                                    <button onclick="toggleStatus('${person.name}', '${event.id}', 'pko', this)" 
-                                        class="pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all ${
+                                <div class="grid grid-cols-2 gap-1.5 mt-2">
+                                    <button onclick="event.stopPropagation(); toggleStatus('${person.name}', '${event.id}', 'pko', this)" 
+                                        class="pko-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all ${
                                             isPko 
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm font-semibold' 
                                             : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                                         }">
                                         <i data-lucide="${isPko ? 'file-check-2' : 'file-text'}" class="w-3.5 h-3.5"></i>
                                         ПКО написан
                                     </button>
                                     
-                                    <button onclick="toggleStatus('${person.name}', '${event.id}', 'paid', this)" 
-                                        class="paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all ${
+                                    <button onclick="event.stopPropagation(); toggleStatus('${person.name}', '${event.id}', 'paid', this)" 
+                                        class="paid-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all ${
                                             isPaid 
-                                            ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm font-semibold' 
                                             : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                                         }">
                                         <i data-lucide="${isPaid ? 'check-circle-2' : 'circle'}" class="w-3.5 h-3.5"></i>
-                                        Деньги выплачены
+                                        Выплачено
                                     </button>
                                 </div>
                             </div>
                         `;
                     });
-                    eventsHtml += '</div>';
                 }
+                eventsHtml += '</div>';
 
                 card.innerHTML = headerHtml + eventsHtml;
                 grid.appendChild(card);
@@ -702,19 +720,19 @@
             // Визуальное обновление кнопки без полной перерисовки страницы
             if (key === 'pko') {
                 if (newVal) {
-                    button.className = "pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm";
+                    button.className = "pko-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold border flex items-center justify-center gap-1 transition-all bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm";
                     button.innerHTML = '<i data-lucide="file-check-2" class="w-3.5 h-3.5"></i> ПКО написан';
                 } else {
-                    button.className = "pko-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
+                    button.className = "pko-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
                     button.innerHTML = '<i data-lucide="file-text" class="w-3.5 h-3.5"></i> ПКО написан';
                 }
             } else if (key === 'paid') {
                 if (newVal) {
-                    button.className = "paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-blue-50 text-blue-700 border-blue-200 shadow-sm";
-                    button.innerHTML = '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Деньги выплачены';
+                    button.className = "paid-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold border flex items-center justify-center gap-1 transition-all bg-blue-50 text-blue-700 border-blue-200 shadow-sm";
+                    button.innerHTML = '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Выплачено';
                 } else {
-                    button.className = "paid-btn py-1.5 px-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
-                    button.innerHTML = '<i data-lucide="circle" class="w-3.5 h-3.5"></i> Деньги выплачены';
+                    button.className = "paid-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
+                    button.innerHTML = '<i data-lucide="circle" class="w-3.5 h-3.5"></i> Выплачено';
                 }
             }
             lucide.createIcons();
