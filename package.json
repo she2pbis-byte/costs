@@ -1,0 +1,16 @@
+{
+  "name": "telegram-finance-bot",
+  "version": "1.0.0",
+  "description": "Бот для отчетности выдачи денег",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.0",
+    "firebase-admin": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
