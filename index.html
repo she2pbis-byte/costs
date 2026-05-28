@@ -19,7 +19,7 @@
                     <i data-lucide="users" class="text-indigo-600 w-7 h-7"></i>
                     Панель сотрудников и выплат
                 </h1>
-                <p class="text-slate-500 text-xs mt-0.5">Отслеживание статусов ПКО и выплат по мероприятиям (кликните на сотрудника, чтобы раскрыть список)</p>
+                <p class="text-slate-500 text-xs mt-0.5">Отслеживание статусов РКО и выплат по мероприятиям (кликните на сотрудника, чтобы раскрыть список)</p>
             </div>
             
             <!-- Поиск -->
@@ -254,7 +254,7 @@
             "location": "Стрелка",
             "admin": "Александр",
             "guests": "1",
-            "extraInfo": "БУФЕТ: \n1. Петрусенко\n2. Цапова",
+            "extraInfo": "БУФЕТ: \n1. Птрусенко\n2. Цапова",
             "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
             "displayDate": "30 май",
             "staff": [
@@ -543,10 +543,11 @@
           }
         ];
 
-        // Ключ для хранения в LocalStorage
+        // Фиксация текущей даты приложения для скрытия будущих мероприятий
+        const CURRENT_DATE = "2026-05-28";
         const STORAGE_KEY = 'staff_payment_states';
 
-        // Получить сохраненные состояния ПКО и выплат
+        // Получить сохраненные состояния РКО, выплат и ставок
         function getSavedStates() {
             const saved = localStorage.getItem(STORAGE_KEY);
             return saved ? JSON.parse(saved) : {};
@@ -557,19 +558,62 @@
             const states = getSavedStates();
             const stateId = `${staffName}_${eventId}`;
             if (!states[stateId]) {
-                states[stateId] = { pko: false, paid: false };
+                states[stateId] = { pko: false, paid: false, rate: "" };
             }
             states[stateId][key] = value;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(states));
         }
 
-        // Связываем сотрудника и события, в которых он участвовал
+        // Сохранить ставку
+        window.saveRate = function(staffName, eventId, value) {
+            // Ограничиваем ввод трехзначным числом
+            if (value.length > 3) {
+                value = value.slice(0, 3);
+            }
+            saveState(staffName, eventId, 'rate', value);
+            
+            // Перерисовываем для динамического обновления итоговой суммы
+            renderStaff(document.getElementById('searchInput').value);
+        }
+
+        // Связываем сотрудника и прошедшие события, в которых он участвовал
         function getStaffEvents(staffName) {
             return eventsData.filter(event => {
                 if (!event.staff) return false;
-                // Сравнение фамилий сотрудников (без учёта регистра и пробелов)
-                return event.staff.some(s => s.name.trim().toLowerCase() === staffName.trim().toLowerCase());
+                
+                // Фильтрация будущих мероприятий (условие 1)
+                const isPastOrPresent = event.date <= CURRENT_DATE;
+                const isAssigned = event.staff.some(s => s.name.trim().toLowerCase() === staffName.trim().toLowerCase());
+                
+                return isAssigned && isPastOrPresent;
             }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Сначала новые
+        }
+
+        // Расчет отработанных часов (условие 2 и 3)
+        function calculateHours(timeStr, endStr) {
+            if (!timeStr || !endStr) {
+                return { text: "НЕТ", value: 0, error: true };
+            }
+            const [startH, startM] = timeStr.split(':').map(Number);
+            const [endH, endM] = endStr.split(':').map(Number);
+            
+            let diffMs = (endH * 60 + endM) - (startH * 60 + startM);
+            if (diffMs < 0) {
+                diffMs += 24 * 60; // На случай перехода через полночь
+            }
+            
+            const hours = diffMs / 60;
+            return { text: `${hours.toFixed(1)} ч.`, value: hours, error: false };
+        }
+
+        // Расчет заработанной суммы по событию
+        function calculateEarned(staffMember, rateVal) {
+            if (!staffMember || !rateVal) return null;
+            const hoursCalc = calculateHours(staffMember.time, staffMember.end);
+            if (hoursCalc.error) return null;
+            
+            const rate = parseFloat(rateVal) || 0;
+            return Math.round(rate * hoursCalc.value);
         }
 
         // Функция переключения разворачивания карточки
@@ -613,36 +657,68 @@
             filteredStaff.forEach(person => {
                 const staffEvents = getStaffEvents(person.name);
                 
+                // Подсчитываем общую заработанную сумму сотрудника (условие 5)
+                let totalEarned = 0;
+                let hasCalculatedEarnings = false;
+                let allCompletedEventsCleared = true;
+
+                staffEvents.forEach(event => {
+                    const stateId = `${person.name}_${event.id}`;
+                    const eventState = savedStates[stateId] || {};
+                    const staffMember = event.staff.find(s => s.name.trim().toLowerCase() === person.name.trim().toLowerCase());
+                    
+                    if (staffMember && eventState.rate) {
+                        const earned = calculateEarned(staffMember, eventState.rate);
+                        if (earned !== null) {
+                            totalEarned += earned;
+                            hasCalculatedEarnings = true;
+                            // Проверка закрытия выплат (условие 5: РКО и Выплачено должны быть нажаты)
+                            if (!eventState.pko || !eventState.paid) {
+                                allCompletedEventsCleared = false;
+                            }
+                        }
+                    }
+                });
+
                 // Создание плашки сотрудника
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between transition-all hover:shadow-md";
 
                 // Шапка карточки сотрудника (компактная, кликабельная)
-                // Скрыли телефон, добавили шеврон состояния и сделали заголовок компактным (py-3 px-4 вместо p-5)
+                // Рядом с именем отображаем заработанную сумму в зависимости от статусов (условие 5)
                 let headerHtml = `
                     <div onclick="toggleCard('${person.name}')" class="py-3 px-4 bg-slate-50/50 hover:bg-slate-100/60 transition-colors cursor-pointer flex items-center justify-between select-none">
                         <div class="flex items-center gap-2">
                             <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
-                            <h3 class="font-bold text-slate-900 text-sm md:text-base">
+                            <h3 class="font-bold text-slate-900 text-sm md:text-base flex items-center gap-1.5">
                                 ${person.name}
+                                ${hasCalculatedEarnings ? `
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        allCompletedEventsCleared 
+                                        ? 'bg-emerald-100 text-emerald-700' 
+                                        : 'bg-rose-100 text-rose-700'
+                                    }">
+                                        ${totalEarned} ₽
+                                    </span>
+                                ` : ''}
                             </h3>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
-                                Мероприятий: ${staffEvents.length}
+                                Прошедших: ${staffEvents.length}
                             </span>
                             <i id="chevron-${person.name}" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform duration-200"></i>
                         </div>
                     </div>
                 `;
 
-                // Список мероприятий (скрыт по умолчанию, убрали max-h-96 и overflow-y-auto)
+                // Список мероприятий
                 let eventsHtml = `<div id="events-container-${person.name}" class="hidden divide-y divide-slate-100 border-t border-slate-100">`;
                 
                 if (staffEvents.length === 0) {
                     eventsHtml += `
                         <div class="p-4 text-center text-slate-400 text-xs">
-                            Нет записей о мероприятиях
+                            Нет записей о мероприятиях за прошедший период
                         </div>
                     `;
                 } else {
@@ -650,29 +726,62 @@
                         const stateId = `${person.name}_${event.id}`;
                         const isPko = savedStates[stateId]?.pko || false;
                         const isPaid = savedStates[stateId]?.paid || false;
+                        const currentRate = savedStates[stateId]?.rate || '';
 
-                        // Находим роль на мероприятии
+                        // Находим роль и время сотрудника
                         const staffMember = event.staff.find(s => s.name.trim().toLowerCase() === person.name.trim().toLowerCase());
-                        const roleName = staffMember?.rolesDisplay || (staffMember?.roles ? staffMember.roles.join(', ') : 'Официант');
+                        
+                        // Расчет часов (условие 2 и 3)
+                        const arrivalTime = staffMember?.time || "";
+                        const departureTime = staffMember?.end || "";
+                        const hoursCalc = calculateHours(arrivalTime, departureTime);
+
+                        // Расчет заработанной суммы за конкретное мероприятие
+                        const eventEarned = calculateEarned(staffMember, currentRate);
 
                         eventsHtml += `
                             <div class="p-3 hover:bg-slate-50/30 transition-colors">
-                                <div class="flex justify-between items-start gap-2 mb-2">
+                                <div class="flex justify-between items-start gap-2 mb-1.5">
                                     <div>
-                                        <!-- Дата первая сверху (поменяли местами) -->
+                                        <!-- Дата первая сверху -->
                                         <div class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-0.5">
                                             <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${event.displayDate} 2026
                                             ${event.format ? `• <span class="bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded text-[10px]">${event.format}</span>` : ''}
                                         </div>
                                         <!-- Название мероприятия ниже -->
                                         <div class="font-bold text-slate-800 text-xs">${event.name}</div>
+                                        
+                                        <!-- Время работы (условие 2 и 3) -->
+                                        <div class="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                                            <span>Приход: <strong class="${arrivalTime ? 'text-slate-700' : 'text-rose-500'}">${arrivalTime || 'НЕТ'}</strong></span>
+                                            <span>Уход: <strong class="${departureTime ? 'text-slate-700' : 'text-rose-500'}">${departureTime || 'НЕТ'}</strong></span>
+                                            ${!hoursCalc.error ? `<span class="bg-slate-100 text-slate-700 px-1 rounded font-medium">Отработано: ${hoursCalc.text}</span>` : ''}
+                                        </div>
                                     </div>
-                                    <span class="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
-                                        ${roleName}
-                                    </span>
+                                    
+                                    <!-- Ввод ставки (условие 4) -->
+                                    <div class="flex flex-col items-end gap-1 shrink-0">
+                                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Ставка</span>
+                                        <div class="relative flex items-center">
+                                            <input type="number" 
+                                                value="${currentRate}" 
+                                                oninput="saveRate('${person.name}', '${event.id}', this.value)"
+                                                placeholder="000" 
+                                                min="0"
+                                                max="999"
+                                                class="w-14 py-0.5 px-1 text-xs text-center border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-800 bg-white" />
+                                            <span class="text-[10px] text-slate-400 ml-1">₽</span>
+                                        </div>
+                                        <!-- Отображение заработанной суммы за событие -->
+                                        ${eventEarned !== null ? `
+                                            <span class="text-[10px] font-bold ${isPko && isPaid ? 'text-emerald-600' : 'text-rose-600'}">
+                                                = ${eventEarned} ₽
+                                            </span>
+                                        ` : ''}
+                                    </div>
                                 </div>
                                 
-                                <!-- Кнопки статуса (ПКО и Выплата) -->
+                                <!-- Кнопки статуса (РКО и Выплата) -->
                                 <div class="grid grid-cols-2 gap-1.5 mt-2">
                                     <button onclick="event.stopPropagation(); toggleStatus('${person.name}', '${event.id}', 'pko', this)" 
                                         class="pko-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all ${
@@ -681,7 +790,7 @@
                                             : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                                         }">
                                         <i data-lucide="${isPko ? 'file-check-2' : 'file-text'}" class="w-3.5 h-3.5"></i>
-                                        ПКО написан
+                                        РКО написан
                                     </button>
                                     
                                     <button onclick="event.stopPropagation(); toggleStatus('${person.name}', '${event.id}', 'paid', this)" 
@@ -721,10 +830,10 @@
             if (key === 'pko') {
                 if (newVal) {
                     button.className = "pko-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold border flex items-center justify-center gap-1 transition-all bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm";
-                    button.innerHTML = '<i data-lucide="file-check-2" class="w-3.5 h-3.5"></i> ПКО написан';
+                    button.innerHTML = '<i data-lucide="file-check-2" class="w-3.5 h-3.5"></i> РКО написан';
                 } else {
                     button.className = "pko-btn py-1 px-1.5 rounded-lg text-[11px] font-medium border flex items-center justify-center gap-1 transition-all bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
-                    button.innerHTML = '<i data-lucide="file-text" class="w-3.5 h-3.5"></i> ПКО написан';
+                    button.innerHTML = '<i data-lucide="file-text" class="w-3.5 h-3.5"></i> РКО написан';
                 }
             } else if (key === 'paid') {
                 if (newVal) {
@@ -735,7 +844,9 @@
                     button.innerHTML = '<i data-lucide="circle" class="w-3.5 h-3.5"></i> Выплачено';
                 }
             }
-            lucide.createIcons();
+            
+            // Быстро обновляем итоговую сумму в шапке
+            renderStaff(document.getElementById('searchInput').value);
         }
 
         // Слушатель поиска
