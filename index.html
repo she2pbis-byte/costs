@@ -16,7 +16,7 @@
         <header class="mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="users" class="text-indigo-600 w-7 h-7"></i>
+                    <i data-lucide="wallet" class="text-indigo-600 w-7 h-7"></i>
                     Выплаты
                 </h1>
             </div>
@@ -34,525 +34,93 @@
         <!-- Основная сетка сотрудников -->
         <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Сюда динамически загрузятся карточки -->
-            <div class="col-span-full py-12 flex flex-col items-center justify-center text-slate-400">
+            <div id="loader" class="col-span-full py-12 flex flex-col items-center justify-center text-slate-400">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
-                <p>Загрузка данных...</p>
+                <p id="loaderText">Загрузка данных из репозитория...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Предоставленные JSON данные
-        const staffDatabase = [
-          { "name": "Авдонин", "phone": "+7 (920) 126-45-04" },
-          { "name": "Борисова", "phone": "+7 (910) 819-64-60" },
-          { "name": "Гайсина", "phone": "+7 (964) 136-18-00" },
-          { "name": "Капралов", "phone": "+7 (920) 118-81-28" },
-          { "name": "Козлова", "phone": "+7 (924) 402-56-99" },
-          { "name": "Коршунов", "phone": "+7 (920) 143-13-96" },
-          { "name": "Никулина", "phone": "+7 (920) 141-82-30" },
-          { "name": "Орехина", "phone": "+79012749063" },
-          { "name": "Пастухова", "phone": "+7 (915) 966-21-51" },
-          { "name": "Прохоров", "phone": "+7 (980) 704-60-58" },
-          { "name": "Салина", "phone": "+7 (903) 824-18-07" },
-          { "name": "Сухановская", "phone": "+79036468034" },
-          { "name": "Телов", "phone": "+7 (996) 926-51-72" }
-        ];
+        // Глобальные переменные для хранения загруженных данных
+        let staffDatabase = [];
+        let eventsData = [];
 
-        const eventsData = [
-          {
-            "id": "1776088130144",
-            "name": "Диво",
-            "date": "2026-07-24",
-            "start": "",
-            "end": "",
-            "format": "Банкет",
-            "admin": "Михаил",
-            "guests": "50",
-            "extraInfo": "",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "1" },
-            "displayDate": "24 июль",
-            "staff": [
-              { "id": "1776088165393", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-              { "id": "1776088184970", "name": "Орехина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79012749063" },
-              { "id": "1776088171996", "name": "Прохоров", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79807046058" },
-              { "id": "1776088178114", "name": "Салина", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "79038241807" }
-            ],
-            "status": { "бар": true, "мой": true, "оф": true, "checked": false },
-            "location": "ул. Камышовая, 10",
-            "contactName": "",
-            "contactPhone": ""
-          },
-          {
-            "id": "1776111416416",
-            "name": "ПЯО",
-            "date": "2026-05-09",
-            "start": "08:00",
-            "end": "16:00",
-            "format": "Кофе-брейк",
-            "admin": "Илья",
-            "guests": "80",
-            "extraInfo": "",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "9 май",
-            "staff": [
-              { "id": "1777637075566", "name": "Борисова", "phone": "+79108196460", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1776111447155", "name": "Козлова", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79244025699" },
-              { "id": "1777884619985", "name": "Пастухова", "phone": "+79159662151", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1776111438526", "name": "Телов", "time": "06:00", "end": "12:00", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": { "Официант": true }, "phone": "+79969265172" }
-            ],
-            "status": { "checked": true },
-            "location": "Советская пл., 3",
-            "contactName": "Ирина Адольфовна",
-            "contactPhone": "+79807410220"
-          },
-          {
-            "id": "1776111545652",
-            "name": "Мэрия",
-            "date": "2026-05-30",
-            "start": "09:30",
-            "end": "10:00",
-            "format": "Кофе-брейк",
-            "admin": "Александр",
-            "guests": "150",
-            "extraInfo": "Обязательно 4 кофе-машины и 2 бойлера ",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "30 май",
-            "staff": [
-              { "id": "1776111590170", "name": "Козлова", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-              { "id": "1776111601717", "name": "Коршунов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-              { "id": "1779721378444", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "06:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1776111581663", "name": "Телов", "time": "06:00", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-            ],
-            "status": { "checked": true },
-            "location": "КЗЦ Милениум; фойе малого зала",
-            "contactName": "",
-            "contactPhone": ""
-          },
-          {
-            "id": "1776111678750",
-            "name": "Квартирник",
-            "date": "2026-05-29",
-            "start": "",
-            "end": "",
-            "format": "Банкет",
-            "admin": "",
-            "guests": "200",
-            "extraInfo": "",
-            "neededStaff": { "оф": "2", "бар": "1", "мой": "0", "пов": "0" },
-            "displayDate": "29 май",
-            "staff": [
-              { "id": "1776111701915", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-              { "id": "1776111717614", "name": "Коршунов", "time": "", "end": "", "roles": ["Бармен"], "rolesDisplay": "Бармен", "rolePaid": {}, "phone": "+79201431396" },
-              { "id": "1776111693329", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-            ],
-            "status": { "checked": true },
-            "location": "Которосльная набережная, 53",
-            "contactName": "",
-            "contactPhone": ""
-          },
-          {
-            "id": "1776111860018",
-            "name": "Космопикник",
-            "date": "2026-06-16",
-            "start": "",
-            "end": "",
-            "format": "Несколько накрытий",
-            "admin": "",
-            "guests": "80",
-            "extraInfo": "",
-            "neededStaff": { "оф": "8", "бар": "", "мой": "", "пов": "0" },
-            "displayDate": "16 июнь",
-            "staff": [
-              { "id": "1779724398277", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1776111898553", "name": "Козлова", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79244025699" },
-              { "id": "1776111907924", "name": "Коршунов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79201431396" },
-              { "id": "1779724392454", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1779726837631", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1776111891435", "name": "Телов", "time": "", "end": "", "roles": ["Официант"], "rolesDisplay": "Официант", "rolePaid": {}, "phone": "+79969265172" }
-            ],
-            "status": { "checked": false },
-            "location": "",
-            "contactName": "",
-            "contactPhone": ""
-          },
-          {
-            "id": "1777537309462",
-            "name": "Прокуратура",
-            "date": "2026-05-07",
-            "start": "10:30",
-            "end": "20:00",
-            "format": "Несколько накрытий",
-            "location": "Прокуратура (ул. Некрасова, 5)",
-            "admin": "Михаил",
-            "guests": "18",
-            "extraInfo": "10:30 Банкет - 18\n17:00 Фуршет - 30",
-            "neededStaff": { "оф": "3", "бар": "", "мой": "", "пов": "0" },
-            "displayDate": "7 май",
-            "staff": [
-              { "id": "1777881280206", "name": "Козлова", "phone": "+79244025699", "time": "08:00", "end": "15:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1777561547134", "name": "Коршунов", "phone": "+79201431396", "time": "14:00", "end": "21:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1777877314161", "name": "Прохоров", "phone": "+79807046058", "time": "08:00", "end": "20:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-            ],
-            "status": { "checked": true },
-            "location": "Прокуратура (ул. Некрасова, 5)",
-            "contactName": "В.В.",
-            "contactPhone": ""
-          },
-          {
-            "id": "1777537523148",
-            "name": "Диво (Роман)",
-            "date": "2026-08-09",
-            "start": "14:00",
-            "end": "23:00",
-            "format": "Фуршет",
-            "location": "ул. Камышовая, 10",
-            "admin": "Илья",
-            "guests": "55",
-            "extraInfo": "",
-            "neededStaff": { "оф": "4", "бар": "2", "мой": "", "пов": "1" },
-            "displayDate": "9 август",
-            "staff": [
-              { "id": "1778667009413", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777537550775", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Бармен"], "rolePaid": {} },
-              { "id": "1778666629300", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false },
-            "location": "ул. Камышовая, 10",
-            "contactName": "Роман",
-            "contactPhone": "+79806511563"
-          },
-          {
-            "id": "1777884055273",
-            "name": "ПСМ",
-            "date": "2026-06-09",
-            "start": "",
-            "end": "",
-            "format": "Фуршет",
-            "location": "Которосльная набережная, 53",
-            "admin": "Александр",
-            "guests": "150",
-            "extraInfo": "",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "9 июнь",
-            "staff": [
-              { "id": "1777884067219", "name": "Борисова", "phone": "+79108196460", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777884075250", "name": "Коршунов", "phone": "+79201431396", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777884082855", "name": "Прохоров", "phone": "+79807046058", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777884089368", "name": "Салина", "phone": "79038241807", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1777886866511",
-            "name": "Забег СБЕР",
-            "date": "2026-05-30",
-            "start": "08:30",
-            "end": "12:30",
-            "format": "Несколько накрытий",
-            "location": "Стрелка",
-            "admin": "Александр",
-            "guests": "1",
-            "extraInfo": "БУФЕТ: \n1. Птрусенко\n2. Цапова",
-            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "30 май",
-            "staff": [
-              { "id": "1777889067424", "name": "Капралов", "phone": "+79201188128", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1777889177428",
-            "name": "Школа 21 Сбер",
-            "date": "2026-05-20",
-            "start": "09:00",
-            "end": "12:00",
-            "format": "Кофе-брейк",
-            "location": "ул. Победы, 14а",
-            "admin": "Александр",
-            "guests": "28",
-            "extraInfo": "09:00-09:30: Велком\n11:30-11:45: Кофе-брейк",
-            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "20 май",
-            "staff": [
-              { "id": "1777889187661", "name": "Телов", "phone": "+79969265172", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777889232148",
-            "name": "Белояр",
-            "date": "2026-05-22",
-            "start": "16:30",
-            "end": "18:00",
-            "format": "Фуршет",
-            "location": "Волжская набережная, 2",
-            "admin": "Михаил",
-            "guests": "40",
-            "extraInfo": "",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "22 май",
-            "staff": [
-              { "id": "1778852930290", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778677551209", "name": "Борисова", "phone": "+7 (910) 819-64-60", "time": "13:00", "end": "19:00", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777889249950", "name": "Козлова", "phone": "+79244025699", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777889243196", "name": "Телов", "phone": "+79969265172", "time": "13:00", "end": "18:00", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777889332128",
-            "name": "Забег ПСБ",
-            "date": "2026-05-23",
-            "start": "07:00",
-            "end": "15:00",
-            "format": "Фуршет",
-            "location": "",
-            "admin": "Михаил",
-            "guests": "30",
-            "extraInfo": "",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "23 май",
-            "staff": [
-              { "id": "1777889354266", "name": "Козлова", "phone": "+79244025699", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777889346078", "name": "Телов", "phone": "+79969265172", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777890729728",
-            "name": "Сбер",
-            "date": "2026-05-19",
-            "start": "08:30",
-            "end": "15:30",
-            "format": "Кофе-брейк",
-            "location": "ул. Советская, 34",
-            "admin": "Михаил",
-            "guests": "130",
-            "extraInfo": "08:30-09:30: велком\n10:30-11:00: первый кофе-брейк\n12:30-13:30: Обед (столовая СБЕР)\n15:00-15:30: второй кофе-брейк",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "19 май",
-            "staff": [
-              { "id": "1777890751880", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1777960955684", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "07:00", "end": "17:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777890794176",
-            "name": "Сбер",
-            "date": "2026-05-20",
-            "start": "08:30",
-            "end": "15:30",
-            "format": "Кофе-брейк",
-            "location": "ул. Советская, 34",
-            "admin": "Михаил",
-            "guests": "130",
-            "extraInfo": "",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "20 май",
-            "staff": [
-              { "id": "1777890812260", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } },
-              { "id": "1778013339353", "name": "Никулина", "phone": "+7 (920) 141-82-30", "time": "07:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777890876158",
-            "name": "Сбер",
-            "date": "2026-05-21",
-            "start": "08:30",
-            "end": "15:30",
-            "format": "Кофе-брейк",
-            "location": "ул. Советская, 34",
-            "admin": "Илья",
-            "guests": "130",
-            "extraInfo": "",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "21 май",
-            "staff": [
-              { "id": "1778852851316", "name": "Авдонин", "phone": "+7 (920) 126-45-04", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777961038500", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1777890925842",
-            "name": "Сбер",
-            "date": "2026-05-22",
-            "start": "08:30",
-            "end": "11:30",
-            "format": "Кофе-брейк",
-            "location": "ул. Советская, 34",
-            "admin": "Илья",
-            "guests": "130",
-            "extraInfo": "",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "22 май",
-            "staff": [
-              { "id": "1777890953090", "name": "Борисова", "phone": "+79108196460", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1777890947235", "name": "Коршунов", "phone": "+79201431396", "time": "07:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1778215141510",
-            "name": "Школа 21 Сбер",
-            "date": "2026-05-21",
-            "start": "09:00",
-            "end": "12:00",
-            "format": "Кофе-брейк",
-            "location": "ул. Победы, 14",
-            "admin": "Александр",
-            "guests": "28",
-            "neededStaff": { "оф": "1", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "21 май",
-            "staff": [
-              { "id": "1778567329902", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "08:00", "end": "14:00", "roles": ["Официант"], "rolePaid": { "Официант": true } }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1778678455822",
-            "name": "Единая Россия",
-            "date": "2026-06-02",
-            "start": "12:30",
-            "end": "15:30",
-            "format": "Кофе-брейк",
-            "location": "Которосльная набережная, 53",
-            "admin": "Александр",
-            "guests": "300",
-            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "2 июнь",
-            "staff": [
-              { "id": "1778678616980", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778678701924", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778678874669", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778678609628", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "09:30", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1778743503713",
-            "name": "Белояр",
-            "date": "2026-05-23",
-            "start": "10:30",
-            "end": "12:30",
-            "format": "Фуршет",
-            "location": "",
-            "admin": "Михаил",
-            "guests": "60",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "23 май",
-            "staff": [
-              { "id": "1779092759830", "name": "Капралов", "phone": "+7 (920) 118-81-28", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778756686269", "name": "Коршунов", "phone": "+7 (920) 143-13-96", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778773529207", "name": "Пастухова", "phone": "+7 (915) 966-21-51", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778744203686", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "08:00", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1778758318139",
-            "name": "Диво (Ганненко П.В.)",
-            "date": "2026-06-19",
-            "start": "",
-            "end": "",
-            "format": "Банкет",
-            "location": "ул. Камышовая, 10",
-            "admin": "Михаил",
-            "guests": "45",
-            "neededStaff": { "оф": "4", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "19 июнь",
-            "staff": [
-              { "id": "1778758518243", "name": "Прохоров", "phone": "+7 (980) 704-60-58", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778758528412", "name": "Салина", "phone": "+7 (903) 824-18-07", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": true }
-          },
-          {
-            "id": "1778765125637",
-            "name": "Эндоскописты",
-            "date": "2026-06-19",
-            "start": "08:00",
-            "end": "18:00",
-            "format": "Кофе-брейк",
-            "location": "Советская пл., 3",
-            "admin": "Михаил",
-            "guests": "250",
-            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "19 июнь",
-            "staff": [
-              { "id": "1778960623761", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1778765220819",
-            "name": "Эндоскописты",
-            "date": "2026-06-20",
-            "start": "08:00",
-            "end": "18:00",
-            "format": "Кофе-брейк",
-            "location": "Советская пл., 3",
-            "admin": "",
-            "guests": "250",
-            "neededStaff": { "оф": "6", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "20 июнь",
-            "staff": [
-              { "id": "1778931344347", "name": "Гайсина", "phone": "+7 (964) 136-18-00", "time": "06:00", "end": "20:00", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1778828336804",
-            "name": "Белояр",
-            "date": "2026-08-08",
-            "start": "",
-            "end": "",
-            "format": "Несколько накрытий",
-            "location": "",
-            "admin": "Михаил",
-            "guests": "40",
-            "neededStaff": { "оф": "2", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "8 август",
-            "staff": [
-              { "id": "1778829694525", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1778829670779", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          },
-          {
-            "id": "1779369787842",
-            "name": "В кругу семьи",
-            "date": "2026-06-07",
-            "start": "",
-            "end": "",
-            "format": "",
-            "location": "",
-            "admin": "",
-            "guests": "200",
-            "neededStaff": { "оф": "5", "бар": "", "мой": "", "пов": "" },
-            "displayDate": "7 июнь",
-            "staff": [
-              { "id": "1779369852125", "name": "Козлова", "phone": "+7 (924) 402-56-99", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} },
-              { "id": "1779369862148", "name": "Телов", "phone": "+7 (996) 926-51-72", "time": "", "end": "", "roles": ["Официант"], "rolePaid": {} }
-            ],
-            "status": { "checked": false }
-          }
-        ];
+        // Получение сегодняшней даты в формате YYYY-MM-DD в локальном времени пользователя
+        const getTodayDateString = () => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
 
-        // Фиксация текущей даты приложения для скрытия будущих мероприятий
-        const CURRENT_DATE = "2026-05-28";
+        const CURRENT_DATE = getTodayDateString();
         const STORAGE_KEY = 'staff_payment_states';
 
-        // Получить сохраненные состояния РКО, выплат и ставок
+        // Функция загрузки данных из репозитория GitHub с поддержкой резервных путей (main / master)
+        async function fetchRepositoryData() {
+            const loaderText = document.getElementById('loaderText');
+            const urls = {
+                staff: [
+                    'https://cdn.jsdelivr.net/gh/she2pbis-byte/vn@main/staff_database.json',
+                    'https://cdn.jsdelivr.net/gh/she2pbis-byte/vn@master/staff_database.json',
+                    'https://raw.githubusercontent.com/she2pbis-byte/vn/main/staff_database.json'
+                ],
+                events: [
+                    'https://cdn.jsdelivr.net/gh/she2pbis-byte/vn@main/events_data.json',
+                    'https://cdn.jsdelivr.net/gh/she2pbis-byte/vn@master/events_data.json',
+                    'https://raw.githubusercontent.com/she2pbis-byte/vn/main/events_data.json'
+                ]
+            };
+
+            // Функция-помощник для последовательного опроса адресов до первого успешного
+            async function fetchWithFallback(urlList) {
+                for (const url of urlList) {
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            return await response.json();
+                        }
+                    } catch (e) {
+                        console.warn(`Ошибка загрузки с ${url}:`, e);
+                    }
+                }
+                throw new Error('Не удалось загрузить файл из всех источников');
+            }
+
+            try {
+                loaderText.innerText = "Загрузка базы сотрудников...";
+                staffDatabase = await fetchWithFallback(urls.staff);
+
+                loaderText.innerText = "Загрузка списка мероприятий...";
+                eventsData = await fetchWithFallback(urls.events);
+
+                // Если всё прошло успешно, отрисовываем сотрудников
+                renderStaff();
+            } catch (error) {
+                console.error("Критическая ошибка загрузки:", error);
+                document.getElementById('staffGrid').innerHTML = `
+                    <div class="col-span-full py-12 text-center text-rose-500 bg-white rounded-2xl border border-rose-100 p-6">
+                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-rose-400 mb-2"></i>
+                        <h3 class="font-bold text-lg">Не удалось загрузить данные</h3>
+                        <p class="text-sm text-slate-500 mt-1">Проверьте соединение с интернетом или доступность репозитория she2pbis-byte/vn.</p>
+                        <button onclick="fetchRepositoryData()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition-colors">
+                            Повторить попытку
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        // Получить сохраненные состояния РКО, выплат и ставок из LocalStorage
         function getSavedStates() {
             const saved = localStorage.getItem(STORAGE_KEY);
             return saved ? JSON.parse(saved) : {};
         }
 
-        // Сохранить состояние
+        // Сохранить состояние в LocalStorage
         function saveState(staffName, eventId, key, value) {
             const states = getSavedStates();
             const stateId = `${staffName}_${eventId}`;
@@ -570,7 +138,7 @@
             }
             saveState(staffName, eventId, 'rate', value);
             
-            // Вызываем точечное обновление расчетов на лету
+            // Вызываем точечное обновление расчетов "на лету"
             updateStaffCalculations(staffName);
         }
 
@@ -579,7 +147,7 @@
             return eventsData.filter(event => {
                 if (!event.staff) return false;
                 
-                // Фильтрация будущих мероприятий (условие 1)
+                // Фильтрация будущих мероприятий относительно СЕГОДНЯШНЕГО дня (условие 2)
                 const isPastOrPresent = event.date <= CURRENT_DATE;
                 const isAssigned = event.staff.some(s => s.name.trim().toLowerCase() === staffName.trim().toLowerCase());
                 
@@ -587,7 +155,7 @@
             }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Сначала новые
         }
 
-        // Расчет отработанных часов (условие 2 и 3)
+        // Расчет отработанных часов
         function calculateHours(timeStr, endStr) {
             if (!timeStr || !endStr) {
                 return { text: "НЕТ", value: 0, error: true };
@@ -597,7 +165,7 @@
             
             let diffMs = (endH * 60 + endM) - (startH * 60 + startM);
             if (diffMs < 0) {
-                diffMs += 24 * 60; // На случай перехода через полночь
+                diffMs += 24 * 60; // Переход через полночь
             }
             
             const hours = diffMs / 60;
@@ -712,7 +280,7 @@
             filteredStaff.forEach(person => {
                 const staffEvents = getStaffEvents(person.name);
                 
-                // Подсчитываем общую заработанную сумму сотрудника (условие 5)
+                // Подсчитываем общую заработанную сумму сотрудника
                 let totalEarned = 0;
                 let hasCalculatedEarnings = false;
                 let allCompletedEventsCleared = true;
@@ -727,7 +295,6 @@
                         if (earned !== null) {
                             totalEarned += earned;
                             hasCalculatedEarnings = true;
-                            // Проверка закрытия выплат
                             if (!eventState.pko || !eventState.paid) {
                                 allCompletedEventsCleared = false;
                             }
@@ -783,7 +350,6 @@
                         // Находим сотрудника
                         const staffMember = event.staff.find(s => s.name.trim().toLowerCase() === person.name.trim().toLowerCase());
                         
-                        // Расчет часов (условие 2 и 3)
                         const arrivalTime = staffMember?.time || "";
                         const departureTime = staffMember?.end || "";
                         const hoursCalc = calculateHours(arrivalTime, departureTime);
@@ -797,7 +363,7 @@
                                     <div>
                                         <!-- Дата первая сверху -->
                                         <div class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-0.5">
-                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${event.displayDate} 2026
+                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${event.displayDate}
                                             ${event.format ? `• <span class="bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded text-[10px]">${event.format}</span>` : ''}
                                         </div>
                                         <!-- Название мероприятия ниже -->
@@ -825,7 +391,7 @@
                                                 class="w-14 py-0.5 px-1 text-xs text-center border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-800 bg-white" />
                                             <span class="text-[10px] text-slate-400 ml-1">₽</span>
                                         </div>
-                                        <!-- Динамический вывод суммы с уникальным ID -->
+                                        <!-- Динамический вывод суммы -->
                                         <span id="earned-val-${person.name}-${event.id}" class="text-[10px] font-bold ${isPko && isPaid ? 'text-emerald-600' : 'text-rose-600'}">
                                             ${eventEarned !== null ? `= ${eventEarned} ₽` : ''}
                                         </span>
@@ -906,9 +472,9 @@
             renderStaff(e.target.value);
         });
 
-        // Первичный запуск
+        // Первичный запуск — загрузка данных из репозитория
         window.onload = function() {
-            renderStaff();
+            fetchRepositoryData();
         };
     </script>
 </body>
